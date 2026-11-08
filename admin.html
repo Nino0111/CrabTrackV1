@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>CrabTrack Admin</title>
+<link rel="stylesheet" href="style.css">
+<style>
+.admin-wrap{max-width:1200px;margin:0 auto;padding:24px}
+.admin-head{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:20px;flex-wrap:wrap}
+.admin-title{font-size:20px;font-weight:bold}.admin-sub{color:var(--text2);font-size:11px;margin-top:5px}
+.admin-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+.admin-card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);padding:16px}
+.admin-card h2{font-size:12px;color:var(--teal);letter-spacing:.08em;margin-bottom:14px}
+.kv{display:grid;grid-template-columns:150px 1fr;gap:8px;padding:7px 0;border-bottom:1px solid rgba(255,255,255,.04)}
+.kv:last-child{border-bottom:0}.k{color:var(--text3)}.v{word-break:break-all}
+.node-row{display:flex;justify-content:space-between;align-items:center;padding:11px 0;border-bottom:1px solid rgba(255,255,255,.04)}
+.node-row:last-child{border-bottom:0}.status{padding:4px 9px;border-radius:15px;font-size:10px;border:1px solid}.ok{color:var(--teal);border-color:var(--teal);background:var(--teal-dim)}.bad{color:var(--red);border-color:var(--red);background:var(--red-dim)}.wait{color:var(--amber);border-color:var(--amber);background:var(--amber-dim)}
+.admin-input{width:100%;background:var(--bg);border:1px solid var(--border2);border-radius:var(--rs);padding:9px;color:var(--text);font-family:var(--mono);font-size:12px;margin:7px 0 10px}
+.btn-row{display:flex;gap:8px;flex-wrap:wrap}.admin-btn{border:1px solid var(--border2);background:var(--bg3);color:var(--text);border-radius:var(--rs);padding:8px 12px;cursor:pointer;font-family:var(--mono);font-size:11px}.admin-btn:hover{border-color:var(--teal);color:var(--teal)}
+.admin-btn.primary{background:var(--teal-dim);border-color:var(--teal);color:var(--teal)}.admin-btn.danger{border-color:var(--red);color:var(--red);background:var(--red-dim)}
+.small{font-size:10px;color:var(--text3);line-height:1.5}.wide{grid-column:1/-1}
+.discover-head{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:10px}
+.node-list{border:1px solid rgba(255,255,255,.05);border-radius:var(--rs);overflow:hidden}
+.discovered-node{display:grid;grid-template-columns:90px 1fr 120px 150px;gap:10px;align-items:center;padding:11px 12px;border-bottom:1px solid rgba(255,255,255,.04)}
+.discovered-node:last-child{border-bottom:0}.node-id{color:var(--teal);font-weight:bold}.node-type{color:var(--text)}.node-seen{color:var(--text3);font-size:10px}.empty-node{padding:16px;color:var(--text3);text-align:center;font-size:11px}
+.login-overlay{position:fixed;inset:0;background:var(--bg);display:flex;align-items:center;justify-content:center;padding:20px;z-index:50}
+.login-box{width:100%;max-width:340px;background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);padding:24px}
+.login-box h1{font-size:16px;margin-bottom:6px}.login-err{color:var(--red);font-size:11px;min-height:16px;margin-bottom:6px}
+.step{display:grid;grid-template-columns:26px 1fr;gap:8px;align-items:start;margin:6px 0}.step b{color:var(--teal)}
+.cmd-ok{color:var(--teal)}.cmd-bad{color:var(--red)}.cmd-wait{color:var(--amber)}
+@media(max-width:760px){.admin-grid{grid-template-columns:1fr}.wide{grid-column:auto}.kv{grid-template-columns:110px 1fr}.discovered-node{grid-template-columns:1fr 1fr}.node-seen{grid-column:1/-1}}
+
+.admin-page-nav{display:flex;gap:8px;flex-wrap:wrap;margin:0 0 16px;padding:8px;background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);position:sticky;top:6px;z-index:10}
+.admin-page-tab{border:1px solid var(--border2);background:var(--bg3);color:var(--text2);border-radius:var(--rs);padding:9px 12px;cursor:pointer;font-family:var(--mono);font-size:11px}
+.admin-page-tab.active{border-color:var(--teal);background:var(--teal-dim);color:var(--teal)}
+.admin-card[data-page].page-hidden{display:none!important}
+@media(max-width:760px){.admin-page-nav{position:static}.admin-page-tab{flex:1 1 42%}}
+</style>
+</head>
+<body>
+<div class="login-overlay" id="loginOverlay">
+  <div class="login-box">
+    <h1 id="loginTitle">🛠 CRAB TRACK — ADMIN</h1>
+    <p class="small" id="loginSub" style="margin-bottom:14px">Sign in to manage system settings, feeding reminders, and scales.</p>
+    <label class="small">Raspberry Pi address</label>
+    <input id="loginApi" class="admin-input" placeholder="http://crabtrackpi.local:3000">
+    <input id="loginUser" class="admin-input" placeholder="Username" autocomplete="username">
+    <input id="loginPass" class="admin-input" type="password" placeholder="Password" autocomplete="current-password" onkeydown="if(event.key==='Enter')doLogin()">
+    <input id="loginPass2" class="admin-input" type="password" placeholder="Repeat password" autocomplete="new-password" style="display:none" onkeydown="if(event.key==='Enter')doLogin()">
+    <div class="login-err" id="loginErr"></div>
+    <div class="btn-row"><button class="admin-btn primary" id="loginBtn" onclick="doLogin()">Sign in</button><a class="admin-btn" href="index.html">← Dashboard</a></div>
+  </div>
+</div>
+<div class="admin-wrap" id="adminApp" style="display:none">
+  <div class="admin-head">
+    <div><div class="admin-title">🛠 CRAB TRACK — ADMIN</div><div class="admin-sub">System administration and Raspberry Pi API diagnostics</div></div>
+    <div class="btn-row"><a class="admin-btn" href="index.html">← Dashboard</a><button class="admin-btn primary" onclick="refreshAll()">↻ Refresh</button><button class="admin-btn" onclick="changePassword()">Change password</button><button class="admin-btn" onclick="doLogout()">Sign out</button></div>
+  </div>
+
+  <div class="btn-row" style="margin:0 0 14px;gap:8px;flex-wrap:wrap"><a class="admin-btn" href="index.html">← Dashboard</a><a class="admin-btn" href="nodes.html">📡 Nodes &amp; Feeding</a>
+<a class="admin-btn" href="node-status.html">🟢 Node Status &amp; Troubleshooting</a><a class="admin-btn" href="calibration_bare.html">⚖ Bare Calibration</a></div>
+    <nav class="admin-page-nav" aria-label="Admin pages">
+    <button class="admin-page-tab active" data-admin-page="overview" onclick="showAdminPage('overview')">Overview</button>
+    <button class="admin-page-tab" data-admin-page="pump" onclick="showAdminPage('pump')">💧 Pump</button>
+    <button class="admin-page-tab" data-admin-page="solenoids" onclick="showAdminPage('solenoids')">🔧 Solenoids</button>
+    <button class="admin-page-tab" data-admin-page="calibration" onclick="showAdminPage('calibration')">⚖ Calibration</button>
+    <button class="admin-page-tab" data-admin-page="raspberry" onclick="showAdminPage('raspberry')">🍓 Raspberry Pi</button>
+    <button class="admin-page-tab" data-admin-page="feeding" onclick="showAdminPage('feeding')">🔔 Feeding & Notifications</button>
+    <button class="admin-page-tab" data-admin-page="maintenance" onclick="showAdminPage('maintenance')">⚙ Maintenance</button>
+  </nav>
+  <div class="admin-grid">
+    <section class="admin-card" data-page="overview">
+      <h2>SYSTEM STATUS</h2>
+      <div class="kv"><span class="k">API status</span><span class="v" id="apiStatus"><span class="status wait">CHECKING</span></span></div>
+      <div class="kv"><span class="k">API endpoint</span><span class="v" id="apiEndpoint">—</span></div>
+      <div class="kv"><span class="k">Last response</span><span class="v" id="lastResponse">—</span></div>
+      <div class="kv"><span class="k">Browser</span><span class="v" id="browserInfo">—</span></div>
+    </section>
+    <section class="admin-card" data-page="overview">
+      <h2>NODE HEALTH</h2>
+      <div class="node-row"><span>Node 1 — pH</span><span id="node1" class="status wait">WAITING</span></div>
+      <div class="node-row"><span>Node 2 — EC + Temperature</span><span id="node2" class="status wait">WAITING</span></div>
+      <div class="node-row"><span>Node 3 — TFT / Status</span><span id="node3" class="status wait">WAITING</span></div>
+      <div class="node-row"><span>Latest data age</span><span id="dataAge">—</span></div>
+    </section>
+    <section class="admin-card" data-page="raspberry">
+      <h2>RASPBERRY PI API</h2>
+      <label class="small">API base URL</label>
+      <input id="apiUrl" class="admin-input" placeholder="http://10.x.x.x:5000">
+      <div class="btn-row">
+        <button class="admin-btn primary" onclick="saveApi()">Save URL</button>
+        <button class="admin-btn" onclick="testApi()">Test Connection</button>
+        <button class="admin-btn" onclick="openApi()">Open /api/data</button>
+      </div>
+      <p class="small" style="margin-top:10px">Firebase provides real-time node status independently. Raspberry Pi provides sensor data and acts as backup.</p>
+    </section>
+    <section class="admin-card wide" data-page="overview">
+      <h2>AUTOMATIC NODE DISCOVERY</h2>
+      <div class="discover-head">
+        <div>
+          <div id="discoveryStatus" class="small">Connecting to Firebase + Raspberry Pi…</div>
+          <div id="discoveryCount" class="small" style="margin-top:4px">0 nodes discovered</div>
+        </div>
+        <div class="btn-row">
+          <button class="admin-btn primary" onclick="discoverNodes(true)">🔎 Discover Nodes</button>
+          <button class="admin-btn" onclick="toggleAutoDiscovery()" id="autoDiscoverBtn">⏸ Auto Discovery: ON</button>
+        </div>
+      </div>
+      <div id="nodeList" class="node-list">
+        <div class="empty-node">Waiting for Firebase or Raspberry Pi…</div>
+      </div>
+      <p class="small" style="margin-top:10px">Firebase = primary source for ONLINE/OFFLINE status. Pi works as backup — status updates instantly even when Pi is offline.</p>
+    </section>
+    <section class="admin-card" data-page="raspberry">
+      <h2>LIVE DATA SNAPSHOT (from Pi)</h2>
+      <div class="kv"><span class="k">pH</span><span class="v" id="ph">—</span></div>
+      <div class="kv"><span class="k">EC</span><span class="v" id="ec">—</span></div>
+      <div class="kv"><span class="k">Temperature</span><span class="v" id="temp">—</span></div>
+      <div class="kv"><span class="k">Salinity</span><span class="v" id="salinity">—</span></div>
+      <div class="kv"><span class="k">Weights</span><span class="v" id="weights">—</span></div>
+    </section>
+    <section class="admin-card wide" data-page="feeding">
+      <h2>FEEDING REMINDERS & PHONE NOTIFICATIONS</h2>
+      <p class="small">The Raspberry Pi checks feeding schedules every 5 minutes, records overdue alerts, and can send Telegram/webhook messages even when this page is closed. Configure Telegram in <code>pi-server/.env</code>; this page can test the configured channel.</p>
+      <div class="admin-grid" style="grid-template-columns:1fr 1fr;gap:14px;margin-top:12px">
+        <div>
+          <b class="small" style="color:var(--teal)">ADD DAILY FEEDING REMINDER</b>
+          <label class="small">Reminder label</label><input id="feedLabel" class="admin-input" placeholder="Morning feeding" value="Feeding reminder">
+          <label class="small">Time (Raspberry Pi local time)</label><input id="feedTime" class="admin-input" type="time" value="07:00">
+          <label class="small">Compartments</label><input id="feedComps" class="admin-input" value="all" placeholder="all or C01,C02,C03">
+          <label class="small">Grace period before overdue alert (minutes)</label><input id="feedGrace" class="admin-input" type="number" min="0" step="5" value="60">
+          <div class="btn-row"><button class="admin-btn primary" onclick="addFeedingSchedule()">＋ Add reminder</button><button class="admin-btn" onclick="refreshFeedingPage()">↻ Refresh</button></div>
+          <p class="small" style="margin-top:8px">This adds a daily schedule. Add a second reminder for evening feeding if needed. A reminder is considered complete when feeding is logged for that compartment.</p>
+        </div>
+        <div>
+          <b class="small" style="color:var(--teal)">NOTIFICATION CHANNEL</b>
+          <div class="kv"><span class="k">Available channels</span><span class="v" id="feedChannels">checking…</span></div>
+          <label class="small">Send test through</label><select id="feedChannel" class="admin-input"><option value="log">Dashboard / local log</option></select>
+          <label class="small">Test message</label><input id="feedTestText" class="admin-input" value="CrabTrack feeding reminder test — notifications are connected.">
+          <div class="btn-row"><button class="admin-btn primary" onclick="sendFeedingTest()">Send test notification</button><button class="admin-btn" onclick="loadFeedMessages()">Check delivery log</button></div>
+          <div id="feedNotifyStatus" class="small" style="margin-top:8px">Messages are queued by the Pi. Telegram requires TELEGRAM_TOKEN and TELEGRAM_CHAT_ID in .env.</div>
+        </div>
+      </div>
+      <div style="margin-top:18px"><b class="small" style="color:var(--teal)">SCHEDULES</b><div id="feedScheduleList" class="node-list" style="margin-top:8px"><div class="empty-node">Loading schedules…</div></div></div>
+      <div style="margin-top:18px"><b class="small" style="color:var(--teal)">DUE / OVERDUE FEEDINGS</b><div id="feedDueList" class="node-list" style="margin-top:8px"><div class="empty-node">Loading alerts…</div></div></div>
+      <div style="margin-top:18px"><b class="small" style="color:var(--teal)">RECENT NOTIFICATION OUTBOX</b><div id="feedOutbox" class="node-list" style="margin-top:8px"><div class="empty-node">No messages loaded yet.</div></div></div>
+    </section>
+    <section class="admin-card wide" data-page="pump">
+      <h2>ESP32 PUMP CONTROLLER</h2>
+      <p class="small" style="margin-bottom:12px">Controls the separate pump ESP32 through authenticated Firebase Realtime Database. The pump ESP32 must join your Wi-Fi router and run the Firebase pump firmware included with this project.</p>
+      <div class="kv"><span class="k">ESP32 connection</span><span class="v" id="pumpOnline"><span class="status wait">WAITING</span></span></div>
+      <div class="kv"><span class="k">Last update</span><span class="v" id="pumpLastSeen">—</span></div>
+      <div class="kv"><span class="k">Clock</span><span class="v" id="pumpClock">—</span></div>
+      <div class="kv"><span class="k">OFF countdown</span><span class="v" id="pumpRemaining">—</span></div>
+      <div id="pumpMessage" class="small" role="status" style="margin:10px 0">Sign in with your Firebase admin account to send commands.</div>
+      <div class="admin-card" style="margin-top:10px"><b>Manual pump control</b><div class="kv"><span class="k">Pump state</span><span class="v" id="pumpState">UNKNOWN</span></div><div class="btn-row"><button class="admin-btn primary" onclick="pumpSet(true)">PUMP ON</button><button class="admin-btn danger" onclick="pumpSet(false)">PUMP OFF</button><button class="admin-btn" onclick="loadPumpStatus()">↻ Refresh status</button></div></div>
+      <hr style="border-color:var(--border);margin:18px 0">
+      <h2>DAILY PUMP OFF SCHEDULE</h2>
+      <p class="small">Uses Philippine time (UTC+8). At the selected time, the pump turns OFF for the chosen duration, then automatically resumes ON. Manual ON/OFF cancels the current timed OFF period.</p>
+      <div class="admin-grid" style="grid-template-columns:repeat(2,minmax(0,1fr));gap:10px"><div><label class="small" for="pumpOffTime">Daily OFF time</label><input id="pumpOffTime" class="admin-input" type="time" value="22:00"></div><div><label class="small" for="pumpOffDuration">OFF duration (minutes, 1–1440)</label><input id="pumpOffDuration" class="admin-input" type="number" min="1" max="1440" value="120"></div></div>
+      <label class="small"><input id="pumpScheduleEnabled" type="checkbox" checked> Enable daily pump OFF schedule</label>
+      <div class="btn-row" style="margin-top:10px"><button class="admin-btn primary" onclick="savePumpSchedule()">SAVE SCHEDULE</button></div>
+      <p class="small" style="margin-top:12px">Safety: Pump starts OFF after reboot. The schedule uses ESP32 network time. This pump firmware does not add a pump/solenoid interlock; do not run pump and drain valves together unless your plumbing design permits it.</p>
+    </section>
+    <section class="admin-card wide" data-page="solenoids">
+      <h2>ESP32 SOLENOID CONTROLLER</h2>
+      <p class="small" style="margin-bottom:12px">Controls S1–S4 through Firebase Realtime Database. The ESP32 must be online and running the Firebase-enabled sketch included in this project.</p>
+      <div class="kv"><span class="k">ESP32 connection</span><span class="v" id="solenoidOnline"><span class="status wait">WAITING</span></span></div>
+      <div class="kv"><span class="k">Last update</span><span class="v" id="solenoidLastSeen">—</span></div>
+      <div class="kv"><span class="k">EC sensor reading</span><span class="v" id="solenoidEc">—</span></div>
+      <div id="solenoidMessage" class="small" role="status" style="margin:10px 0">Sign in with your Firebase admin account to send commands.</div>
+      <div class="admin-grid" style="grid-template-columns:repeat(2,minmax(0,1fr));gap:10px">
+        <div class="admin-card"><b>S1 — Drain valve 1</b><div class="kv"><span class="k">State</span><span class="v" id="s1State">UNKNOWN</span></div><div class="btn-row"><button class="admin-btn primary" onclick="solenoidSet(1,true)">ON</button><button class="admin-btn" onclick="solenoidSet(1,false)">OFF</button></div></div>
+        <div class="admin-card"><b>S2 — Drain valve 2</b><div class="kv"><span class="k">State</span><span class="v" id="s2State">UNKNOWN</span></div><div class="btn-row"><button class="admin-btn primary" onclick="solenoidSet(2,true)">ON</button><button class="admin-btn" onclick="solenoidSet(2,false)">OFF</button></div></div>
+        <div class="admin-card"><b>S3 — Freshwater</b><div class="kv"><span class="k">State</span><span class="v" id="s3State">UNKNOWN</span></div><div class="btn-row"><button class="admin-btn primary" onclick="solenoidSet(3,true)">ON</button><button class="admin-btn" onclick="solenoidSet(3,false)">OFF</button></div></div>
+        <div class="admin-card"><b>S4 — Saltwater</b><div class="kv"><span class="k">State</span><span class="v" id="s4State">UNKNOWN</span></div><div class="btn-row"><button class="admin-btn primary" onclick="solenoidSet(4,true)">ON</button><button class="admin-btn" onclick="solenoidSet(4,false)">OFF</button></div></div>
+      </div>
+      <div class="btn-row" style="margin-top:12px"><button class="admin-btn danger" onclick="solenoidAllOff()">ALL VALVES OFF</button></div>
+      <hr style="border-color:var(--border);margin:18px 0">
+      <h2>DAILY DRAIN SCHEDULE</h2>
+      <p class="small">Philippine time (UTC+8). At the selected time S1 and S2 open. Manual ON commands time out after 120 seconds; the scheduled duration is separately configurable.</p>
+      <div class="admin-grid" style="grid-template-columns:repeat(2,minmax(0,1fr));gap:10px">
+        <div><label class="small" for="solDrainTime">Daily drain time</label><input id="solDrainTime" class="admin-input" type="time" value="06:00"></div>
+        <div><label class="small" for="solDrainDuration">Duration (seconds, 1–86400)</label><input id="solDrainDuration" class="admin-input" type="number" min="1" max="86400" value="120"></div>
+      </div>
+      <label class="small"><input id="solDrainEnabled" type="checkbox"> Enable daily drain schedule</label>
+      <div class="btn-row" style="margin-top:10px"><button class="admin-btn primary" onclick="saveSolenoidSchedule()">SAVE SCHEDULE</button><button class="admin-btn" onclick="loadSolenoidStatus()">↻ Refresh status</button></div>
+      <p class="small" style="margin-top:12px">Safety: S3 and S4 are mutually exclusive. Each manual valve activation shuts off after 120 seconds. Automatic salinity dosing is disabled. This firmware does not provide a pump interlock.</p>
+    </section>
+    <section class="admin-card wide" data-page="calibration">
+      <h2>SCALES — TARE / CALIBRATE (no Arduino IDE needed)</h2>
+      <p class="small" id="scLink" style="margin-bottom:6px"></p>
+      <p class="small">Pick a compartment. Requests go <b>online through Firebase</b> - no Raspberry Pi needed (the Pi is only a local backup). The board picks the request up within a few seconds, does it, and reports back below. Requests the board doesn't pick up within 2 minutes are cancelled, so a late tare can never zero a loaded scale.</p>
+      <div class="admin-grid" style="grid-template-columns:1fr 1fr;gap:14px;margin-top:10px">
+        <div>
+          <label class="small">Compartment</label>
+          <select id="scComp" class="admin-input" onchange="renderScaleInfo()"></select>
+          <div class="kv"><span class="k">Live weight</span><span class="v" id="scLive">—</span></div>
+          <div class="kv"><span class="k">Calibration factor</span><span class="v" id="scFactor">—</span></div>
+          <div class="kv"><span class="k">Last tared</span><span class="v" id="scLastTare">—</span></div>
+          <div class="kv"><span class="k">Last calibrated</span><span class="v" id="scLastCal">—</span></div>
+        </div>
+        <div>
+          <div class="step"><b>1</b><div><b class="small" style="color:var(--text)">Tare (zero)</b><div class="small">Take EVERYTHING off the scale, then press Tare.</div>
+            <div class="btn-row" style="margin-top:6px"><button class="admin-btn primary" onclick="scaleTare()">⚖ TARE</button></div></div></div>
+          <div class="step"><b>2</b><div><b class="small" style="color:var(--text)">Calibrate (only when needed)</b><div class="small">After taring, put an object of known weight on the scale, enter its weight in grams, press Calibrate.</div>
+            <div class="btn-row" style="margin-top:6px"><input id="scKnown" class="admin-input" type="number" min="1" step="0.1" placeholder="Known weight (g)" style="margin:0;max-width:170px"><button class="admin-btn primary" onclick="scaleCalibrate()">🎯 CALIBRATE</button></div></div></div>
+        </div>
+      </div>
+      <div style="margin-top:14px">
+        <b class="small" style="color:var(--teal)">RECENT REQUESTS</b>
+        <div class="node-list" id="scCmdList" style="margin:8px 0"></div>
+      </div>
+    </section>
+    
+    
+    <section class="admin-card wide" data-page="maintenance">
+      <h2>LOCAL DATA / MAINTENANCE</h2>
+      <div class="btn-row">
+        <button class="admin-btn" onclick="location.reload()">Reload Admin</button>
+        <button class="admin-btn" onclick="clearSensorCache()">Clear Sensor Cache</button>
+        <button class="admin-btn danger" onclick="clearAllLocalData()">Clear CrabTrack Local Data</button>
+      </div>
+      <p class="small" style="margin-top:10px">Affects this browser only. Does NOT delete Firebase or Raspberry Pi data.</p>
+    </section>
+  </div>
+</div>
+
+<!-- Firebase SDKs — CORRECT ORDER -->
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+
+<!-- Your admin logic -->
+<script src="admin.js"></script>
+</body>
+</html>

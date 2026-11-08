@@ -1,0 +1,498 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#0A1628">
+<title>CrabTrack · Nodes &amp; Feeding</title>
+<link rel="manifest" href="manifest.json">
+<link rel="stylesheet" href="style.css">
+<style>
+/* page-specific — reuses the shared tokens from style.css */
+body{padding:0;overflow-y:auto}
+.wrap{max-width:1100px;margin:0 auto;padding:16px 16px 60px}
+.pagehead{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:14px 0 18px;border-bottom:1px solid var(--border);margin-bottom:20px}
+.pagehead h1{font-size:15px;letter-spacing:.08em;font-weight:bold}
+.pagehead .sub{font-size:10px;color:var(--text3)}
+.spacer{flex:1}
+.card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);padding:16px;margin-bottom:16px}
+.card h2{font-size:12px;letter-spacing:.1em;color:var(--teal);margin-bottom:4px}
+.card .hint{font-size:10px;color:var(--text3);line-height:1.6;margin-bottom:14px}
+.grid{display:grid;gap:10px;grid-template-columns:repeat(auto-fit,minmax(180px,1fr))}
+label{display:block;font-size:9px;color:var(--text3);letter-spacing:.08em;margin-bottom:4px}
+input,select,textarea{width:100%;background:var(--bg);border:1px solid var(--border2);border-radius:var(--rs);
+  padding:8px 10px;color:var(--text);font-family:var(--mono);font-size:12px}
+input:focus,select:focus,textarea:focus{outline:none;border-color:var(--teal)}
+textarea{resize:vertical;min-height:70px}
+.btn{background:var(--teal-dim);border:1px solid var(--teal);border-radius:var(--rs);padding:8px 16px;
+  color:var(--teal);cursor:pointer;font-family:var(--mono);font-size:11px;letter-spacing:.05em}
+.btn:hover{background:var(--teal);color:var(--bg)}
+.btn.ghost{background:none;border-color:var(--border2);color:var(--text2)}
+.btn.ghost:hover{background:var(--bg3);color:var(--text);border-color:var(--teal)}
+.btn.danger{background:var(--red-dim);border-color:var(--red);color:var(--red)}
+.btn.danger:hover{background:var(--red);color:var(--bg)}
+.btn:disabled{opacity:.4;cursor:not-allowed}
+.row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.chips{display:flex;gap:6px;flex-wrap:wrap}
+.chip{font-size:10px;padding:5px 10px;border-radius:14px;border:1px solid var(--border2);
+  color:var(--text2);cursor:pointer;user-select:none}
+.chip.on{background:var(--teal-dim);border-color:var(--teal);color:var(--teal)}
+.node{background:var(--bg3);border:1px solid var(--border);border-radius:var(--r);padding:12px 14px;margin-bottom:8px}
+.node-top{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.dot.on{background:var(--teal);box-shadow:0 0 7px var(--teal)}
+.dot.off{background:var(--red)}
+.dot.never{background:var(--text3)}
+.node-name{font-size:12px;font-weight:bold}
+.node-id{font-size:10px;color:var(--text3)}
+.node-meta{font-size:10px;color:var(--text3);margin-top:6px;line-height:1.6}
+.pill{font-size:9px;padding:2px 7px;border-radius:9px;border:1px solid var(--border2);color:var(--text2)}
+.pill.ok{color:var(--teal);border-color:rgba(0,212,170,.4);background:var(--teal-dim)}
+.pill.bad{color:var(--red);border-color:rgba(239,68,68,.4);background:var(--red-dim)}
+.pill.warn{color:var(--amber);border-color:rgba(245,158,11,.4);background:var(--amber-dim)}
+table{width:100%;border-collapse:collapse;font-size:11px}
+th{text-align:left;font-size:9px;color:var(--text3);letter-spacing:.08em;padding:6px 8px;border-bottom:1px solid var(--border)}
+td{padding:8px;border-bottom:1px solid rgba(255,255,255,.04);color:var(--text2)}
+.empty{font-size:11px;color:var(--text3);padding:14px;text-align:center;border:1px dashed var(--border2);border-radius:var(--r)}
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:24px;background:var(--bg3);
+  border:1px solid var(--teal);color:var(--teal);padding:10px 18px;border-radius:var(--r);font-size:11px;
+  z-index:99;opacity:0;pointer-events:none;transition:opacity .25s,bottom .25s}
+.toast.show{opacity:1;bottom:36px}
+.toast.err{border-color:var(--red);color:var(--red)}
+code{background:var(--bg);padding:2px 6px;border-radius:4px;color:var(--teal);font-size:10px;word-break:break-all}
+pre{background:var(--bg);border:1px solid var(--border);border-radius:var(--rs);padding:10px;
+  font-size:10px;color:var(--text2);overflow-x:auto;line-height:1.6;margin-top:8px}
+details summary{cursor:pointer;font-size:10px;color:var(--text3);padding:6px 0}
+details summary:hover{color:var(--teal)}
+@media(max-width:600px){.wrap{padding:10px 10px 60px}.card{padding:12px}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="pagehead">
+    <span class="logo-dot"></span>
+    <div>
+      <h1>NODES &amp; FEEDING</h1>
+      <div class="sub" id="apiLabel">—</div>
+    </div>
+    <span class="spacer"></span>
+    <span class="conn-badge offline" id="conn">CHECKING…</span>
+    <a class="btn ghost" href="index.html">← Dashboard</a>
+     <a class="btn ghost" href="admin.html">🛠 Admin Home</a>
+     <a class="btn ghost" href="calibration_bare.html">⚖ Calibration</a>
+  </div>
+
+  <!-- ══════════ ADD A NODE ══════════ -->
+  <div class="card">
+    <h2>➕ ADD A NODE</h2>
+    <div class="hint">
+      Give the node an ID, tick what it measures, save. Then flash the ESP32 with the same ID —
+      the firmware template is in <code>firmware/crabtrack_node.ino</code>, and the only line you change is
+      <code>NODE_ID</code>. A node that posts data with an unknown ID registers itself automatically,
+      so this form is really just for naming it ahead of time.
+    </div>
+    <div class="grid">
+      <div>
+        <label>NODE ID *</label>
+        <input id="nId" placeholder="node4" autocomplete="off">
+      </div>
+      <div>
+        <label>DISPLAY NAME</label>
+        <input id="nLabel" placeholder="pH Node — Tank B" autocomplete="off">
+      </div>
+      <div>
+        <label>LOCATION</label>
+        <input id="nLoc" placeholder="Tank B" autocomplete="off">
+      </div>
+      <div>
+        <label>OFFLINE AFTER (SECONDS)</label>
+        <input id="nOffline" type="number" value="120" min="15">
+      </div>
+    </div>
+    <div style="margin-top:12px">
+      <label>MEASURES</label>
+      <div class="chips" id="capChips">
+        <span class="chip" data-cap="ph">pH</span>
+        <span class="chip" data-cap="salinity">Salinity / EC</span>
+        <span class="chip" data-cap="temperature">Temperature</span>
+        <span class="chip" data-cap="weights">Weights</span>
+        <span class="chip" data-cap="dissolved_oxygen">Dissolved O₂</span>
+        <span class="chip" data-cap="water_level">Water level</span>
+        <span class="chip" data-cap="actuator">Solenoid actuator</span>
+        <span class="chip" data-cap="pump">Pump</span>
+      </div>
+    </div>
+    <div class="row" style="margin-top:14px">
+      <button class="btn" id="addNode">SAVE NODE</button>
+      <button class="btn ghost" id="clearForm">CLEAR</button>
+    </div>
+    <details>
+      <summary>▸ Show the exact firmware snippet for this node</summary>
+      <pre id="snippet">Fill in a Node ID above to generate it.</pre>
+    </details>
+  </div>
+
+  <!-- ══════════ REGISTERED NODES ══════════ -->
+  <div class="card">
+    <h2>📡 REGISTERED NODES</h2>
+    <div class="hint">Live status. A node goes red when it stops reporting for longer than its offline threshold.</div>
+    <div id="nodeList"><div class="empty">Loading…</div></div>
+  </div>
+
+  <!-- ══════════ FEEDING SCHEDULE ══════════ -->
+  <div class="card">
+    <h2>🍤 FEEDING SCHEDULE</h2>
+    <div class="hint">
+      Set the times crabs should be fed. The Pi checks every 5 minutes and raises an alert
+      (and sends a message, if configured) when a feeding time passes without a FED entry being logged.
+      This runs on the Pi itself, so it works with no browser and no phone open.
+      <strong>Grace</strong> is how long after the due time before a gentle reminder turns urgent.
+    </div>
+    <div class="grid">
+      <div>
+        <label>TIME *</label>
+        <input id="sTime" type="time" value="07:00">
+      </div>
+      <div>
+        <label>LABEL</label>
+        <input id="sLabel" placeholder="Morning feed" autocomplete="off">
+      </div>
+      <div>
+        <label>COMPARTMENTS</label>
+        <input id="sComps" value="all" placeholder="all  or  C01,C02,C03">
+      </div>
+      <div>
+        <label>GRACE (MINUTES)</label>
+        <input id="sGrace" type="number" value="60" min="5">
+      </div>
+    </div>
+    <div style="margin-top:12px">
+      <label>DAYS</label>
+      <div class="chips" id="dayChips">
+        <span class="chip on" data-day="all">Every day</span>
+        <span class="chip" data-day="1">Mon</span><span class="chip" data-day="2">Tue</span>
+        <span class="chip" data-day="3">Wed</span><span class="chip" data-day="4">Thu</span>
+        <span class="chip" data-day="5">Fri</span><span class="chip" data-day="6">Sat</span>
+        <span class="chip" data-day="0">Sun</span>
+      </div>
+    </div>
+    <div class="row" style="margin-top:14px">
+      <button class="btn" id="addSched">ADD FEEDING TIME</button>
+    </div>
+    <div style="margin-top:16px" id="schedList"></div>
+  </div>
+
+  <!-- ══════════ DUE NOW ══════════ -->
+  <div class="card">
+    <h2>⏰ DUE RIGHT NOW</h2>
+    <div class="hint">Refreshes every 60 seconds. Tap FED to log the feeding and clear the alert.</div>
+    <div id="dueList"><div class="empty">Loading…</div></div>
+  </div>
+
+  <!-- ══════════ MESSAGE ══════════ -->
+  <div class="card">
+    <h2>💬 SEND A MESSAGE</h2>
+    <div class="hint">
+      Sends to whatever channel the Pi has configured (Telegram, a webhook, or just the local alert log).
+      If the Pi is offline at that moment the message is queued and delivered automatically when
+      the connection returns — nothing is dropped. Channel in use: <span id="chanName" class="pill">…</span>
+    </div>
+    <textarea id="msgBody" placeholder="e.g. Salinity dropped in Tank B — check the inlet valve"></textarea>
+    <div class="row" style="margin-top:10px">
+      <button class="btn" id="sendMsg">SEND MESSAGE</button>
+      <button class="btn ghost" id="flushMsg">RETRY QUEUED</button>
+      <span class="pill" id="queuedPill" style="display:none"></span>
+    </div>
+    <div style="margin-top:14px" id="outbox"></div>
+  </div>
+
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ══════════════════════════════════════════════════════════
+// Talks to the Pi server. Same API base the dashboard uses, so
+// changing it in the dashboard's Config modal changes it here too.
+// ══════════════════════════════════════════════════════════
+const API = () => (localStorage.getItem('crabtrack_api_url') || 'http://10.193.219.111:3000').replace(/\/$/, '');
+const $ = id => document.getElementById(id);
+
+function toast(msg, isErr) {
+  const t = $('toast');
+  t.textContent = msg;
+  t.className = 'toast show' + (isErr ? ' err' : '');
+  clearTimeout(t._t);
+  t._t = setTimeout(() => { t.className = 'toast'; }, 3200);
+}
+
+async function api(path, opts = {}) {
+  const res = await fetch(API() + path, {
+    headers: { 'Content-Type': 'application/json' },
+    ...opts,
+    body: opts.body ? JSON.stringify(opts.body) : undefined,
+  });
+  const text = await res.text();
+  let data; try { data = JSON.parse(text); } catch { data = { raw: text }; }
+  if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+  return data;
+}
+
+// ── connection badge ──
+async function ping() {
+  $('apiLabel').textContent = API();
+  try {
+    const s = await api('/api/status');
+    $('conn').textContent = `ONLINE · ${s.nodes_online}/${s.nodes_registered} NODES`;
+    $('conn').className = 'conn-badge online';
+    return s;
+  } catch (e) {
+    $('conn').textContent = 'PI UNREACHABLE';
+    $('conn').className = 'conn-badge offline';
+    return null;
+  }
+}
+
+// ══════════ capability chips ══════════
+$('capChips').addEventListener('click', e => {
+  if (e.target.classList.contains('chip')) { e.target.classList.toggle('on'); updateSnippet(); }
+});
+const selectedCaps = () => [...document.querySelectorAll('#capChips .chip.on')].map(c => c.dataset.cap);
+
+// ══════════ day chips ══════════
+$('dayChips').addEventListener('click', e => {
+  if (!e.target.classList.contains('chip')) return;
+  const chip = e.target;
+  if (chip.dataset.day === 'all') {
+    document.querySelectorAll('#dayChips .chip').forEach(c => c.classList.remove('on'));
+    chip.classList.add('on');
+  } else {
+    document.querySelector('#dayChips .chip[data-day="all"]').classList.remove('on');
+    chip.classList.toggle('on');
+    if (!document.querySelector('#dayChips .chip.on')) {
+      document.querySelector('#dayChips .chip[data-day="all"]').classList.add('on');
+    }
+  }
+});
+function selectedDays() {
+  if (document.querySelector('#dayChips .chip[data-day="all"]').classList.contains('on')) return 'daily';
+  return [...document.querySelectorAll('#dayChips .chip.on')].map(c => c.dataset.day).join(',');
+}
+
+// ══════════ firmware snippet preview ══════════
+function updateSnippet() {
+  const id = $('nId').value.trim();
+  if (!id) { $('snippet').textContent = 'Fill in a Node ID above to generate it.'; return; }
+  const caps = selectedCaps();
+  const fields = [];
+  if (caps.includes('ph')) fields.push('  doc["ph"] = readPH();');
+  if (caps.includes('salinity')) fields.push('  doc["salinity"] = readEC();');
+  if (caps.includes('temperature')) fields.push('  doc["temperature"] = readTemp();');
+  if (caps.includes('weights')) fields.push('  JsonArray w = doc["weights"].to<JsonArray>();\n  for (int i = 0; i < 10; i++) w.add(readScale(i));');
+  $('snippet').textContent =
+`// ── in crabtrack_node.ino, change only this line: ──
+#define NODE_ID   "${id}"
+#define PI_HOST   "${API().replace(/^https?:\/\//, '').split(':')[0]}"
+#define PI_PORT   ${API().split(':')[2] || 3000}
+
+// ── then fill in this node's readings: ──
+void buildPayload(JsonDocument& doc) {
+  doc["node_id"] = NODE_ID;
+${fields.join('\n') || '  // add your sensor reads here'}
+}`;
+}
+$('nId').addEventListener('input', updateSnippet);
+
+// ══════════ add node ══════════
+$('addNode').onclick = async () => {
+  const nodeId = $('nId').value.trim();
+  if (!nodeId) return toast('Node ID is required', true);
+  if (!/^[A-Za-z0-9_-]{1,32}$/.test(nodeId)) return toast('Use letters, numbers, - or _ only', true);
+  try {
+    await api('/api/nodes', { method: 'POST', body: {
+      nodeId,
+      label: $('nLabel').value.trim() || nodeId,
+      location: $('nLoc').value.trim(),
+      capabilities: selectedCaps(),
+      offlineAfter: parseInt($('nOffline').value, 10) || 120,
+    }});
+    toast(`Node "${nodeId}" saved`);
+    $('clearForm').click();
+    loadNodes();
+  } catch (e) { toast(e.message, true); }
+};
+
+$('clearForm').onclick = () => {
+  ['nId', 'nLabel', 'nLoc'].forEach(i => $(i).value = '');
+  $('nOffline').value = 120;
+  document.querySelectorAll('#capChips .chip').forEach(c => c.classList.remove('on'));
+  updateSnippet();
+};
+
+// ══════════ node list ══════════
+async function loadNodes() {
+  const el = $('nodeList');
+  try {
+    const nodes = await api('/api/nodes');
+    if (!nodes.length) { el.innerHTML = '<div class="empty">No nodes registered yet.</div>'; return; }
+    el.innerHTML = nodes.map(n => {
+      const state = !n.lastSeen ? 'never' : (n.online ? 'on' : 'off');
+      const stateText = !n.lastSeen ? 'NEVER REPORTED' : (n.online ? 'ONLINE' : 'OFFLINE');
+      const pill = !n.lastSeen ? 'warn' : (n.online ? 'ok' : 'bad');
+      const ago = n.secondsSinceSeen == null ? '—'
+        : n.secondsSinceSeen < 90 ? `${n.secondsSinceSeen}s ago`
+        : `${Math.round(n.secondsSinceSeen / 60)} min ago`;
+      const caps = n.capabilities.length ? n.capabilities.join(' · ') : 'no sensors declared';
+      return `<div class="node">
+        <div class="node-top">
+          <span class="dot ${state}"></span>
+          <span class="node-name">${esc(n.label)}</span>
+          <span class="node-id">${esc(n.nodeId)}</span>
+          <span class="pill ${pill}">${stateText}</span>
+          <span class="spacer"></span>
+          <button class="btn ghost" style="padding:4px 10px" onclick="renameNode('${esc(n.nodeId)}','${esc(n.label)}')">RENAME</button>
+          <button class="btn danger" style="padding:4px 10px" onclick="removeNode('${esc(n.nodeId)}')">REMOVE</button>
+        </div>
+        <div class="node-meta">
+          ${esc(n.location) || 'no location'} · ${esc(caps)} · last seen ${ago} · offline after ${n.offlineAfter}s
+        </div>
+      </div>`;
+    }).join('');
+  } catch (e) {
+    el.innerHTML = `<div class="empty">Can't reach the Pi (${esc(e.message)}). Check the API URL in the dashboard's Config panel.</div>`;
+  }
+}
+
+async function renameNode(id, current) {
+  const label = prompt(`New display name for ${id}:`, current);
+  if (label === null) return;
+  try { await api('/api/nodes/' + id, { method: 'PATCH', body: { label } }); toast('Renamed'); loadNodes(); }
+  catch (e) { toast(e.message, true); }
+}
+
+async function removeNode(id) {
+  if (!confirm(`Remove ${id}? Its stored readings are deleted too. The physical node will re-register itself if it posts again.`)) return;
+  try { await api('/api/nodes/' + id, { method: 'DELETE' }); toast('Removed'); loadNodes(); }
+  catch (e) { toast(e.message, true); }
+}
+
+// ══════════ schedule ══════════
+$('addSched').onclick = async () => {
+  try {
+    await api('/api/schedule', { method: 'POST', body: {
+      time: $('sTime').value,
+      label: $('sLabel').value.trim(),
+      compIds: $('sComps').value.trim() || 'all',
+      days: selectedDays(),
+      graceMinutes: parseInt($('sGrace').value, 10) || 60,
+    }});
+    toast('Feeding time added');
+    $('sLabel').value = '';
+    loadSchedule(); loadDue();
+  } catch (e) { toast(e.message, true); }
+};
+
+const DAYNAMES = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+async function loadSchedule() {
+  const el = $('schedList');
+  try {
+    const rows = await api('/api/schedule');
+    if (!rows.length) { el.innerHTML = '<div class="empty">No feeding times set. Add one above.</div>'; return; }
+    el.innerHTML = `<table><thead><tr><th>TIME</th><th>LABEL</th><th>DAYS</th><th>COMPARTMENTS</th><th>GRACE</th><th></th></tr></thead><tbody>` +
+      rows.map(s => `<tr>
+        <td style="color:var(--teal);font-weight:bold">${esc(s.time)}</td>
+        <td>${esc(s.label) || '—'}</td>
+        <td>${s.days === 'daily' ? 'Every day' : s.days.split(',').map(d => DAYNAMES[+d]).join(' ')}</td>
+        <td>${esc(s.compIds)}</td>
+        <td>${s.graceMinutes}m</td>
+        <td style="text-align:right"><button class="btn danger" style="padding:3px 9px" onclick="delSched(${s.id})">DELETE</button></td>
+      </tr>`).join('') + '</tbody></table>';
+  } catch (e) { el.innerHTML = `<div class="empty">Can't load schedule (${esc(e.message)}).</div>`; }
+}
+
+async function delSched(id) {
+  if (!confirm('Delete this feeding time?')) return;
+  try { await api('/api/schedule/' + id, { method: 'DELETE' }); toast('Deleted'); loadSchedule(); loadDue(); }
+  catch (e) { toast(e.message, true); }
+}
+
+// ══════════ due now ══════════
+async function loadDue() {
+  const el = $('dueList');
+  try {
+    const d = await api('/api/feeding-alerts');
+    const all = [...(d.scheduled || []), ...(d.interval || [])];
+    if (!all.length) { el.innerHTML = '<div class="empty">✓ Nothing due. All compartments are on schedule.</div>'; return; }
+    el.innerHTML = all.map(a => `<div class="node">
+      <div class="node-top">
+        <span class="dot ${a.level === 'alert' ? 'off' : 'never'}"></span>
+        <span class="node-name">${esc(a.compId)}</span>
+        <span class="pill ${a.level === 'alert' ? 'bad' : 'warn'}">${a.level === 'alert' ? 'OVERDUE' : 'DUE'}</span>
+        <span class="spacer"></span>
+        <button class="btn" style="padding:4px 12px" onclick="markFed('${esc(a.compId)}')">FED ✓</button>
+      </div>
+      <div class="node-meta">${esc(a.msg)}</div>
+    </div>`).join('');
+  } catch (e) { el.innerHTML = `<div class="empty">Can't load feeding status (${esc(e.message)}).</div>`; }
+}
+
+async function markFed(compId) {
+  try {
+    await api('/api/feed', { method: 'POST', body: { compId, type: 'feed', note: 'logged from Nodes page', source: 'nodes-page' } });
+    toast(`${compId} marked fed`);
+    loadDue();
+  } catch (e) { toast(e.message, true); }
+}
+
+// ══════════ messages ══════════
+$('sendMsg').onclick = async () => {
+  const body = $('msgBody').value.trim();
+  if (!body) return toast('Type a message first', true);
+  $('sendMsg').disabled = true;
+  try {
+    const r = await api('/api/message', { method: 'POST', body: { body } });
+    toast(`Queued for delivery via ${r.channel}`);
+    $('msgBody').value = '';
+    setTimeout(loadOutbox, 900);
+  } catch (e) { toast(e.message, true); }
+  finally { $('sendMsg').disabled = false; }
+};
+
+$('flushMsg').onclick = async () => {
+  try { await api('/api/messages/flush', { method: 'POST' }); toast('Retry triggered'); setTimeout(loadOutbox, 900); }
+  catch (e) { toast(e.message, true); }
+};
+
+async function loadOutbox() {
+  const el = $('outbox');
+  try {
+    const d = await api('/api/messages?limit=10');
+    $('chanName').textContent = d.default;
+    const pending = d.outbox.filter(m => m.status === 'pending').length;
+    $('queuedPill').style.display = pending ? 'inline-block' : 'none';
+    $('queuedPill').textContent = `${pending} QUEUED`;
+    $('queuedPill').className = 'pill warn';
+    if (!d.outbox.length) { el.innerHTML = ''; return; }
+    el.innerHTML = `<table><thead><tr><th>WHEN</th><th>MESSAGE</th><th>STATUS</th></tr></thead><tbody>` +
+      d.outbox.map(m => `<tr>
+        <td>${new Date(m.ts).toLocaleString()}</td>
+        <td>${esc(m.body).slice(0, 90)}</td>
+        <td><span class="pill ${m.status === 'sent' ? 'ok' : m.status === 'failed' ? 'bad' : 'warn'}">${m.status.toUpperCase()}</span></td>
+      </tr>`).join('') + '</tbody></table>';
+  } catch (e) { el.innerHTML = ''; }
+}
+
+function esc(s) {
+  return String(s ?? '').replace(/[&<>"']/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
+}
+
+// ══════════ boot ══════════
+async function refreshAll() { await ping(); loadNodes(); loadSchedule(); loadDue(); loadOutbox(); }
+refreshAll();
+setInterval(refreshAll, 60000);
+
+if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
+</script>
+</body>
+</html>

@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>CrabTrack - Calibration Test</title>
+<style>
+:root{--bg:#0A1628;--card:#0F1E38;--card2:#152544;--line:rgba(0,212,170,.18);--teal:#00D4AA;--amber:#F59E0B;--red:#EF4444;--blue:#3B82F6;--text:#E8F4F1;--mute:#6F93AB;--mono:Consolas,'Courier New',monospace}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:radial-gradient(1200px 600px at 80% -10%,#10305a55,transparent),var(--bg);color:var(--text);font-family:var(--mono);font-size:13px;padding:20px;min-height:100vh}
+.wrap{max-width:1000px;margin:0 auto;animation:rise .5s ease}
+@keyframes rise{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+h1{font-size:18px;letter-spacing:.06em;margin-bottom:4px}.sub{color:var(--mute);font-size:11px;margin-bottom:16px}
+.card{background:linear-gradient(180deg,var(--card),#0c1a31);border:1px solid var(--line);border-radius:12px;padding:16px;margin-bottom:14px}
+.card h2{font-size:11px;color:var(--teal);letter-spacing:.12em;margin-bottom:12px}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}@media(max-width:760px){.grid{grid-template-columns:1fr}}
+.pills{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px}
+.pill{display:flex;align-items:center;gap:7px;padding:6px 12px;border-radius:20px;border:1px solid var(--line);background:var(--card2);font-size:11px;transition:.3s}
+.dot{width:9px;height:9px;border-radius:50%;background:var(--mute)}
+.pill.ok{border-color:var(--teal);color:var(--teal)}.pill.ok .dot{background:var(--teal);animation:pulse 1.8s infinite}
+.pill.bad{border-color:var(--red);color:var(--red)}.pill.bad .dot{background:var(--red)}
+.pill.wait{border-color:var(--amber);color:var(--amber)}.pill.wait .dot{background:var(--amber);animation:pulse 1s infinite}
+@keyframes pulse{0%{box-shadow:0 0 0 0 currentColor}70%{box-shadow:0 0 0 7px transparent}100%{box-shadow:0 0 0 0 transparent}}
+.big{font-size:44px;font-weight:bold;color:var(--teal);text-shadow:0 0 18px #00d4aa55;letter-spacing:.02em;transition:color .3s}
+.big small{font-size:16px;color:var(--mute);margin-left:6px}
+.kv{display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid #ffffff0a}.kv:last-child{border:0}.kv span:first-child{color:var(--mute)}
+label{font-size:10px;color:var(--mute);display:block;margin:10px 0 4px}
+select,input{width:100%;background:var(--bg);border:1px solid #00d4aa44;border-radius:7px;padding:10px;color:var(--text);font-family:var(--mono);font-size:13px}
+select:focus,input:focus{outline:none;border-color:var(--teal);box-shadow:0 0 0 3px #00d4aa22}
+.row{display:flex;gap:8px;margin-top:10px}.row>*{flex:1}
+button{border:1px solid var(--teal);background:#00d4aa18;color:var(--teal);border-radius:7px;padding:11px;font-family:var(--mono);font-size:12px;font-weight:bold;cursor:pointer;transition:.2s}
+button:hover{background:#00d4aa33;transform:translateY(-1px)}button:active{transform:none}button:disabled{opacity:.4;cursor:wait;transform:none}
+button.ghost{border-color:#ffffff33;color:var(--mute);background:none}
+.status{margin-top:12px;padding:10px 12px;border-radius:8px;border:1px solid var(--line);min-height:42px;display:flex;align-items:center;gap:10px;font-size:12px}
+.spin{width:14px;height:14px;border:2px solid #f59e0b44;border-top-color:var(--amber);border-radius:50%;animation:sp .8s linear infinite;flex:none}@keyframes sp{to{transform:rotate(360deg)}}
+.status.ok{border-color:var(--teal);color:var(--teal);background:#00d4aa10}.status.bad{border-color:var(--red);color:var(--red);background:#ef444410}.status.wait{border-color:var(--amber);color:var(--amber)}
+.check{display:flex;gap:10px;padding:7px 0;align-items:flex-start;border-bottom:1px solid #ffffff0a}.check:last-child{border:0}.check i{font-style:normal;width:18px;flex:none}.check small{color:var(--mute);display:block;margin-top:2px}
+#term{background:#050d1a;border:1px solid var(--line);border-radius:10px;height:300px;overflow:auto;padding:10px 12px;font-size:12px;line-height:1.55}
+#term div{animation:fade .25s ease;white-space:pre-wrap;word-break:break-word}@keyframes fade{from{opacity:0;transform:translateX(-4px)}to{opacity:1;transform:none}}
+.t{color:#4a7090}.board{color:#b8e8dc}.you{color:#7db4ff}.ok{color:var(--teal)}.err{color:#ff7b7b}.warn{color:var(--amber)}
+.tools{display:flex;gap:8px;margin-top:8px;justify-content:flex-end}.tools button{flex:none;padding:6px 12px}
+pre{background:#050d1a;border:1px solid var(--line);border-radius:8px;padding:10px;font-size:11px;overflow:auto;margin-top:8px;color:#b8e8dc}
+.hide{display:none}
+</style>
+</head>
+<body>
+
+<style>
+.crabtrack-global-nav{display:flex;gap:8px;flex-wrap:wrap;margin:0 auto 18px;max-width:1200px;padding:10px 12px;background:#0F1E38;border:1px solid rgba(0,212,170,.22);border-radius:10px}
+.crabtrack-global-nav a{display:inline-block;text-decoration:none;color:#E8F4F1;border:1px solid rgba(0,212,170,.28);background:#152544;padding:9px 12px;border-radius:6px;font:12px Consolas,'Courier New',monospace}
+.crabtrack-global-nav a:hover{color:#00D4AA;border-color:#00D4AA}
+</style>
+<nav class="crabtrack-global-nav" aria-label="CrabTrack navigation"><a href="index.html">← Dashboard</a><a href="admin.html">🛠 Admin Home</a><a href="nodes.html">📡 Nodes &amp; Feeding</a><a href="calibration_bare.html">⚖ Calibration</a></nav>
+<div class="wrap">
+  <h1>🦀 CRABTRACK - CALIBRATION TEST</h1>
+  <div class="sub">Bare-bones page to prove remote tare / calibrate works. No login, no Raspberry Pi. Pair it with <b>calibration_bare.ino</b>.</div>
+
+  <div class="pills">
+    <div class="pill wait" id="pFb"><span class="dot"></span><span>Firebase: connecting</span></div>
+    <div class="pill wait" id="pAuth"><span class="dot"></span><span>Sign-in: ...</span></div>
+    <div class="pill wait" id="pBoard"><span class="dot"></span><span>Board: waiting</span></div>
+  </div>
+
+  <div class="grid">
+    <div class="card">
+      <h2>LIVE FROM THE BOARD</h2>
+      <div class="big"><span id="w">--</span><small>g</small></div>
+      <div style="margin-top:12px">
+        <div class="kv"><span>Calibration factor</span><span id="cal">-</span></div>
+        <div class="kv"><span>Wi-Fi signal</span><span id="rssi">-</span></div>
+        <div class="kv"><span>Board uptime</span><span id="up">-</span></div>
+        <div class="kv"><span>Board reading requests</span><span id="poll">-</span></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>CONTROLS</h2>
+      <label>Compartment</label>
+      <select id="comp"></select>
+      <div class="row"><button id="bTare">⚖ TARE (scale empty)</button></div>
+      <label>Known weight (grams) - put it on the scale AFTER taring</label>
+      <div class="row"><input id="known" type="number" min="1" step="0.1" placeholder="e.g. 200"><button id="bCal">🎯 CALIBRATE</button></div>
+      <label>No weight? Set the factor directly (approximate - fine for showing a trend)</label>
+      <div class="row"><input id="factor" type="number" step="any" placeholder="e.g. 400"><button id="bFactor" class="ghost">SET FACTOR</button></div>
+      <div class="status" id="status">Ready.</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>CHECKLIST (what is working)</h2>
+    <div id="checks"></div>
+    <div id="rulesHelp" class="hide">
+      <div class="status bad" style="margin-top:10px">Firebase refused access. Add this inside "rules" in Realtime Database → Rules, then press Publish:</div>
+      <pre id="rulesText">"calib_test": { ".read": "auth != null", ".write": "auth != null" }</pre>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>LIVE LOG (like the Arduino Serial Monitor)</h2>
+    <div id="term"></div>
+    <div class="tools"><button class="ghost" id="bPause">Pause</button><button class="ghost" id="bCopy">Copy</button><button class="ghost" id="bClear">Clear</button></div>
+  </div>
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+<script>
+const CFG = {
+  apiKey: "AIzaSyBBwmx81dJMxA8EBFDAGCiAwRbKjpebp5w",
+  authDomain: "crabtrack-1e256.firebaseapp.com",
+  databaseURL: "https://crabtrack-1e256-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId: "crabtrack-1e256", appId: "1:702678864202:web:51eb3f88e97ed54c75f1b3"
+};
+const $ = id => document.getElementById(id);
+const compSel = $('comp');
+for (let i = 1; i <= 10; i++) compSel.insertAdjacentHTML('beforeend', `<option>C${String(i).padStart(2, '0')}</option>`);
+compSel.value = 'C07';
+
+// ---------- terminal ----------
+let paused = false, buffer = [];
+function log(text, cls = 'board') {
+  const line = document.createElement('div');
+  const t = new Date().toLocaleTimeString();
+  line.innerHTML = `<span class="t">${t}</span>  <span class="${cls}"></span>`;
+  line.lastChild.textContent = text;
+  if (paused) { buffer.push(line); return; }
+  const term = $('term'); term.appendChild(line);
+  while (term.children.length > 300) term.removeChild(term.firstChild);
+  term.scrollTop = term.scrollHeight;
+}
+$('bPause').onclick = () => {
+  paused = !paused; $('bPause').textContent = paused ? 'Resume' : 'Pause';
+  if (!paused) { buffer.forEach(l => $('term').appendChild(l)); buffer = []; $('term').scrollTop = $('term').scrollHeight; }
+};
+$('bClear').onclick = () => { $('term').innerHTML = ''; };
+$('bCopy').onclick = () => { navigator.clipboard.writeText($('term').innerText); log('log copied to clipboard', 'warn'); };
+function logClass(m) { return /FAILED|ERROR|timed out/i.test(m) ? 'err' : /OK|online|complete/i.test(m) ? 'ok' : 'board'; }
+
+// ---------- pills + checklist ----------
+function pill(id, cls, text) { const p = $(id); p.className = 'pill ' + cls; p.lastChild.textContent = text; }
+const checks = { fb: null, auth: null, board: null, poll: null };
+const hints = {
+  fb: ['Browser connected to Firebase', 'Check your internet connection.'],
+  auth: ['Signed in to Firebase', 'Anonymous sign-in must be enabled (Authentication → Sign-in method).'],
+  board: ['Board is sending its heartbeat', 'Flash calibration_bare.ino, open Serial Monitor at 115200 and check it prints "[FB] signed in".'],
+  poll: ['Board can READ requests from Firebase', 'Board reports a read error - see the message. Usually the database rules (see below).'],
+};
+function renderChecks(extra = {}) {
+  $('checks').innerHTML = Object.keys(hints).map(k => {
+    const v = checks[k], icon = v === true ? '✅' : v === false ? '❌' : '⏳';
+    return `<div class="check"><i>${icon}</i><div>${hints[k][0]}${v === false ? `<small>${extra[k] || hints[k][1]}</small>` : ''}</div></div>`;
+  }).join('');
+}
+renderChecks();
+
+// ---------- firebase ----------
+firebase.initializeApp(CFG);
+const db = firebase.database();
+let ready = false, offset = 0;
+db.ref('.info/connected').on('value', s => {
+  checks.fb = !!s.val(); pill('pFb', s.val() ? 'ok' : 'bad', s.val() ? 'Firebase: connected' : 'Firebase: offline'); renderChecks();
+  if (s.val()) log('connected to Firebase', 'ok'); else log('Firebase connection lost', 'err');
+});
+firebase.auth().signInAnonymously().then(() => {
+  ready = true; checks.auth = true; pill('pAuth', 'ok', 'Sign-in: OK'); renderChecks(); attach();
+}).catch(e => {
+  checks.auth = false; pill('pAuth', 'bad', 'Sign-in: failed'); renderChecks({ auth: e.message }); log('sign-in failed: ' + e.message, 'err');
+});
+
+// ---------- per-compartment listeners ----------
+let refs = [], pendingId = null, sentAt = 0, beatSeq = -1, beatAt = 0;
+const base = () => '/calib_test/' + compSel.value;
+function detach() { refs.forEach(r => r.off()); refs = []; }
+function denied(e) { $('rulesHelp').classList.remove('hide'); log('Firebase refused access: ' + e.message, 'err'); }
+
+function attach() {
+  detach(); beatSeq = -1; beatAt = 0; checks.board = null; checks.poll = null; renderChecks();
+  $('w').textContent = '--'; ['cal', 'rssi', 'up', 'poll'].forEach(i => $(i).textContent = '-');
+  log('watching ' + compSel.value, 'warn');
+
+  const st = db.ref(base() + '/status'); refs.push(st);
+  st.on('value', s => {
+    const v = s.val(); if (!v) return;
+    if (v.seq !== beatSeq) { beatSeq = v.seq; beatAt = Date.now(); }
+    $('w').textContent = Number(v.weight).toFixed(1);
+    $('cal').textContent = Number(v.cal).toFixed(4);
+    $('rssi').textContent = v.rssi + ' dBm';
+    $('up').textContent = v.up + ' s';
+    checks.poll = !!v.pollOk;
+    $('poll').textContent = v.pollOk ? 'OK' : 'FAILED';
+    $('poll').style.color = v.pollOk ? 'var(--teal)' : 'var(--red)';
+    renderChecks({ poll: v.pollErr || undefined });
+    if (!v.pollOk && /permission/i.test(v.pollErr || '')) $('rulesHelp').classList.remove('hide');
+  }, denied);
+
+  const lg = db.ref(base() + '/log').limitToLast(60); refs.push(lg);
+  lg.on('child_added', s => { const m = (s.val() || {}).m; if (m) log(m, logClass(m)); }, denied);
+
+  const rs = db.ref(base() + '/res'); refs.push(rs);
+  rs.on('value', s => {
+    const r = s.val(); if (!r || String(r.id) !== pendingId) return;
+    const secs = ((Date.now() - sentAt) / 1000).toFixed(1);
+    setStatus(r.ok ? 'ok' : 'bad', (r.ok ? '✓ ' : '✗ ') + r.message + `  (${secs}s)`);
+    log(`result: ${r.ok ? 'OK' : 'FAILED'} - ${r.message}  [${secs}s round trip]`, r.ok ? 'ok' : 'err');
+    pendingId = null; busy(false);
+  }, denied);
+}
+compSel.onchange = () => ready && attach();
+
+setInterval(() => {
+  if (!beatAt) { pill('pBoard', 'wait', 'Board: waiting for heartbeat'); return; }
+  const age = (Date.now() - beatAt) / 1000;
+  const alive = age < 8; checks.board = alive;
+  pill('pBoard', alive ? 'ok' : 'bad', alive ? `Board: ONLINE (${age.toFixed(0)}s ago)` : `Board: silent for ${age.toFixed(0)}s`);
+  renderChecks();
+}, 1000);
+setTimeout(() => { if (!beatAt) { checks.board = false; renderChecks(); } }, 12000);
+
+// ---------- sending requests ----------
+function setStatus(cls, html) { const s = $('status'); s.className = 'status ' + cls; s.innerHTML = html; }
+function busy(b) { $('bTare').disabled = b; $('bCal').disabled = b; $('bFactor').disabled = b; }
+
+async function send(action, known) {
+  if (!ready) { setStatus('bad', 'Not signed in to Firebase yet.'); return; }
+  const id = String(Date.now()); pendingId = id; sentAt = Date.now(); busy(true);
+  setStatus('wait', '<span class="spin"></span>Waiting for the board to pick it up...');
+  const rec = { id, action, tsSec: Math.floor(Date.now() / 1000) };
+  if (action !== 'tare') rec.knownWeight = known;
+  log(`you: ${action.toUpperCase()}${known ? ' ' + known + (action === 'factor' ? '' : ' g') : ''} sent to ${compSel.value}`, 'you');
+  try { await db.ref(base() + '/cmd').set(rec); }
+  catch (e) { setStatus('bad', 'Could not send: ' + e.message); denied(e); pendingId = null; busy(false); return; }
+  setTimeout(() => {
+    if (pendingId === id) {
+      setStatus('bad', 'No reply from the board after 15 s. See the checklist above - the board has not read the request.');
+      log('no reply after 15 s', 'err'); pendingId = null; busy(false);
+    }
+  }, 15000);
+}
+$('bTare').onclick = () => { if (confirm('Tare ' + compSel.value + '?\nThe scale must be COMPLETELY EMPTY.')) send('tare'); };
+$('bCal').onclick = () => {
+  const g = parseFloat($('known').value);
+  if (!(g > 0)) { setStatus('bad', 'Enter the known weight in grams first.'); return; }
+  if (confirm(`Calibrate ${compSel.value} with ${g} g?\nOnly if you tared it EMPTY first and the ${g} g object is on the scale now.`)) send('calibrate', g);
+};
+</script>
+<script>
+$('bFactor').onclick = () => {
+  const f = parseFloat($('factor').value);
+  if (!f || !isFinite(f)) { setStatus('bad', 'Enter a factor (a number other than 0).'); return; }
+  if (confirm(`Set ${compSel.value} factor to ${f} without a weight?\nReadings will be approximate (good for trends, not exact grams).`)) send('factor', f);
+};
+</script>
+</body>
+</html>

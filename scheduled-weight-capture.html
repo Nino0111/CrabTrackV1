@@ -1,0 +1,236 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>CrabTrack | Scheduled Weight Capture</title>
+<style>
+:root{color-scheme:dark;--bg:#0a1220;--panel:#121e30;--line:#293b53;--text:#edf5ff;--muted:#a3b5ca;--blue:#38bdf8;--green:#34d399;--red:#fb7185}*{box-sizing:border-box}body{margin:0;padding:24px 15px;background:linear-gradient(145deg,#07101d,#102039);font:15px/1.5 system-ui,-apple-system,Segoe UI,Roboto,sans-serif;color:var(--text)}.wrap{max-width:1050px;margin:auto}.eyebrow{font-size:.75rem;text-transform:uppercase;letter-spacing:.14em;font-weight:800;color:var(--blue)}h1{font-size:clamp(1.8rem,4vw,2.5rem);margin:.3rem 0}.sub{color:var(--muted);margin:0 0 22px}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px}.card{background:var(--panel);border:1px solid var(--line);border-radius:17px;padding:20px;box-shadow:0 14px 38px #0002}.card h2{font-size:1.05rem;margin:0 0 15px}.field{margin:12px 0}label{display:block;font-weight:650;color:#cfdded;margin-bottom:6px}input,select{width:100%;padding:11px 12px;border-radius:10px;border:1px solid #3a4d66;background:#091424;color:var(--text);font:inherit}input[type=checkbox]{width:18px;height:18px;accent-color:var(--green)}.inline{display:flex;align-items:center;gap:9px}.inline label{margin:0}.buttons{display:flex;gap:9px;flex-wrap:wrap;margin-top:15px}button{border:0;border-radius:10px;padding:11px 15px;font-weight:750;cursor:pointer;background:var(--blue);color:#062033}button.alt{background:#293d56;color:var(--text)}button:disabled{opacity:.55;cursor:wait}.status{white-space:pre-wrap;overflow-wrap:anywhere;margin-top:13px;border:1px solid var(--line);border-radius:10px;background:#091424;padding:11px;color:var(--muted)}.status.ok{color:#a7f3d0;border-color:#17684e}.status.err{color:#fecdd3;border-color:#873247}.muted{font-size:.87rem;color:var(--muted)}.tablewrap{overflow-x:auto}table{width:100%;border-collapse:collapse;min-width:530px}th,td{text-align:left;padding:10px;border-bottom:1px solid var(--line)}th{font-size:.82rem;color:var(--muted)}td input[type=time]{min-width:130px}td input[type=checkbox]{display:block;margin:auto}.rowSave{padding:8px 11px;white-space:nowrap}.rowStatus{font-size:.82rem;min-width:90px}.pill{border:1px solid var(--line);padding:3px 9px;border-radius:99px;font-size:.78rem;color:var(--muted)}.good{color:var(--green)}.warn{color:#fbbf24}code{color:#bae6fd;overflow-wrap:anywhere}
+
+.tabs{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0 16px;border-bottom:1px solid var(--line);padding-bottom:10px}
+.tab{background:#20324a;color:var(--text);border:1px solid var(--line);padding:9px 14px;border-radius:10px}
+.tab.active{background:var(--blue);color:#062033;border-color:var(--blue)}
+.tabPanel{display:none}.tabPanel.active{display:block}
+.summaryGrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(145px,1fr));gap:10px;margin:12px 0}
+.summaryCard{background:#091424;border:1px solid var(--line);border-radius:12px;padding:14px}
+.summaryCard .label{font-size:.8rem;color:var(--muted)}.summaryCard .value{font-size:1.45rem;font-weight:800;margin-top:4px}
+.compGroup{border:1px solid var(--line);border-radius:12px;margin:10px 0;overflow:hidden}
+.compGroup summary{cursor:pointer;padding:13px 15px;background:#0b1829;font-weight:800;display:flex;justify-content:space-between;gap:12px}
+.compGroup .tablewrap{padding:0 12px 10px}
+.historyToolbar{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+@media(max-width:650px){.summaryCard .value{font-size:1.2rem}}
+</style></head>
+<body><main class="wrap">
+<div class="eyebrow">CrabTrack · add-on panel</div><h1>Scheduled Weight Capture</h1>
+<p class="sub">Configure a daily capture time for each compartment and review the saved daily weight history. Timezone: <strong>Asia/Manila</strong>.</p>
+<div class="grid">
+<section class="card"><h2>Firebase connection</h2>
+<div class="field"><label for="fbUrl">Firebase Realtime Database URL</label><input id="fbUrl" type="url" value="https://crabtrack-1e256-default-rtdb.asia-southeast1.firebasedatabase.app"></div>
+<div class="field"><label for="token">Firebase ID token (if required by your rules)</label><input id="token" type="password" autocomplete="off" placeholder="Optional — use your existing authenticated site when possible"></div>
+<div class="buttons"><button id="testBtn" class="alt">Test read access</button><button id="clearToken" class="alt">Clear token</button></div><div id="connStatus" class="status">Not tested yet.</div>
+<p class="muted">Uses your existing firmware's paths: <code>/crab_monitor/schedules/weights/C01</code> … <code>C10</code>. Keep Firebase rules secure; do not enable public write access.</p></section>
+<section class="card"><h2>Schedule controls</h2>
+<div class="field"><label for="applyTime">Set same time for all compartments</label><input id="applyTime" type="time" value="06:00"></div>
+<div class="buttons"><button id="applyAll" class="alt">Apply time to C01–C10</button><button id="loadSchedules" class="alt">Load schedules</button><button id="saveSchedules">Save all schedules</button></div>
+<div id="scheduleStatus" class="status">Default display is 06:00. Load schedules to see the saved Firebase values.</div>
+<p class="muted">Firmware must be online, have valid NTP time and Firebase access. Each ESP32 checks its own compartment schedule.</p></section>
+</div>
+<section class="card" style="margin-top:16px"><h2>Daily capture schedule</h2><div class="tablewrap"><table><thead><tr><th>Compartment</th><th>Enabled</th><th>Capture time</th><th>Save</th><th>Status</th><th>History path</th></tr></thead><tbody id="scheduleRows"></tbody></table></div></section>
+<section class="card" style="margin-top:16px"><h2>Daily weight history</h2><div class="grid"><div class="field"><label for="historyStartDate">From date</label><input id="historyStartDate" type="date"></div><div class="field"><label for="historyEndDate">To date</label><input id="historyEndDate" type="date"></div><div class="field"><label for="historyComp">Compartment</label><select id="historyComp"><option value="ALL">All compartments</option></select></div></div><div class="buttons"><button id="loadHistory">Load history</button><button id="autoRefresh" class="alt">Auto-refresh: ON</button></div><div id="historyStatus" class="status">Choose a start date and end date, then load saved history. Both dates are included.</div>
+<div class="summaryGrid">
+  <div class="summaryCard"><div class="label">Total records</div><div class="value" id="sumRecords">—</div></div>
+  <div class="summaryCard"><div class="label">Compartments with records</div><div class="value" id="sumComps">—</div></div>
+  <div class="summaryCard"><div class="label">Average weight</div><div class="value" id="sumAverage">—</div></div>
+  <div class="summaryCard"><div class="label">Latest capture</div><div class="value" id="sumLatest" style="font-size:1rem">—</div></div>
+</div>
+<div class="tabs" role="tablist" aria-label="History views">
+  <button class="tab active" data-tab="tabSummary" role="tab">Overview</button>
+  <button class="tab" data-tab="tabByComp" role="tab">By compartment</button>
+  <button class="tab" data-tab="tabAll" role="tab">All records</button>
+</div>
+<div id="tabSummary" class="tabPanel active">
+  <p class="muted">Each compartment is grouped below. Expand a compartment to inspect its readings.</p>
+  <div id="historyGroups"></div>
+</div>
+<div id="tabByComp" class="tabPanel">
+  <div class="field"><label for="focusComp">Show compartment</label><select id="focusComp"><option value="ALL">All compartments</option></select></div>
+  <div class="tablewrap"><table><thead><tr><th>Date</th><th>Compartment</th><th>Weight (g)</th><th>Scheduled time</th><th>Captured at</th><th>Status</th></tr></thead><tbody id="historyCompRows"><tr><td colspan="6" class="muted">No history loaded.</td></tr></tbody></table></div>
+</div>
+<div id="tabAll" class="tabPanel">
+  <div class="tablewrap"><table><thead><tr><th>Date</th><th>Compartment</th><th>Weight (g)</th><th>Scheduled time</th><th>Captured at</th><th>Status</th></tr></thead><tbody id="historyRows"><tr><td colspan="6" class="muted">No history loaded.</td></tr></tbody></table></div>
+</div></section>
+<section class="card" style="margin-top:16px"><h2>Important</h2><p>Saving a schedule does not itself trigger a capture from this browser. The supplied <code>CrabTrack_WeightNode_ScheduledHistory.ino</code> firmware contains the capture routine and reads each node's schedule from Firebase. Flash compatible firmware to each weight node, set the correct compartment number, and verify Serial Monitor shows <code>[HISTORY] Saved daily capture</code>.</p><p class="muted">History is stored at <code>/crab_monitor/weight_history/C01/YYYY-MM-DD</code> through C10. This page expands every child record for the selected date, shows the exact Firebase path, and refreshes automatically every 15 seconds while enabled.</p></section>
+</main>
+<script>
+const $=id=>document.getElementById(id);const comps=Array.from({length:10},(_,i)=>'C'+String(i+1).padStart(2,'0'));
+function base(){const b=$('fbUrl').value.trim().replace(/\/+$/,'');if(!/^https:\/\//i.test(b))throw Error('Enter a valid HTTPS Firebase Realtime Database URL.');return b;}
+function url(path){let u=base()+'/'+path.replace(/^\/+/, '')+'.json';const t=$('token').value.trim();if(t)u+='?auth='+encodeURIComponent(t);return u;}
+async function fb(path,opts={}){const r=await fetch(url(path),{cache:'no-store',...opts,headers:{'Content-Type':'application/json',...(opts.headers||{})}});const body=await r.text();if(!r.ok)throw Error('Firebase HTTP '+r.status+': '+body.slice(0,220));try{return body?JSON.parse(body):null}catch{return body}}
+function pathSchedule(c){return '/crab_monitor/schedules/weights/'+c}function pathHistory(c,d){return '/crab_monitor/weight_history/'+c+'/'+d}
+function show(id,msg,kind=''){const el=$(id);el.className='status '+kind;el.textContent=msg}
+function buildRows(){ $('scheduleRows').innerHTML='';for(const c of comps){const tr=document.createElement('tr');tr.innerHTML=`<td><strong>${c}</strong></td><td><input aria-label="Enable ${c}" type="checkbox" id="en_${c}" checked></td><td><input aria-label="Time for ${c}" type="time" id="tm_${c}" value="06:00"></td><td><button class="rowSave" id="save_${c}">Save ${c}</button></td><td><span class="rowStatus muted" id="st_${c}">Not saved</span></td><td class="muted"><code>${pathSchedule(c)}</code></td>`;$('scheduleRows').appendChild(tr);const op=document.createElement('option');op.value=c;op.textContent=c;$('historyComp').appendChild(op);const op2=document.createElement('option');op2.value=c;op2.textContent=c;$('focusComp').appendChild(op2);$('save_'+c).onclick=()=>saveOne(c)} }
+async function saveOne(c){const btn=$('save_'+c);btn.disabled=true;show('st_'+c,'Saving…');try{const value={enabled:$('en_'+c).checked,time:$('tm_'+c).value||'06:00',timezone:'Asia/Manila',updatedAt:new Date().toISOString(),updatedBy:'CrabTrack Scheduled Capture Panel',schemaVersion:1};await fb(pathSchedule(c),{method:'PUT',body:JSON.stringify(value)});show('st_'+c,'Saved ✓','ok');show('scheduleStatus',`${c} schedule saved: ${value.enabled?'Enabled':'Disabled'} at ${value.time} (Asia/Manila).`,'ok')}catch(e){show('st_'+c,'Failed','err');show('scheduleStatus',`Could not save ${c}: ${diagnose(e)}`,'err')}finally{btn.disabled=false}}
+function diagnose(e){const m=e&&e.message?e.message:String(e);if(m==='Failed to fetch'||/NetworkError|Load failed/i.test(m))return 'Browser could not reach Firebase. Check internet access, the database URL, browser extensions/VPN, and Firebase Realtime Database availability/rules. Try opening the database URL in this browser. If using a token, confirm it is current.';return m}
+$('applyAll').onclick=()=>{const t=$('applyTime').value||'06:00';for(const c of comps)$('tm_'+c).value=t;saveScheduleDraft();show('scheduleStatus','Set all ten schedules to '+t+'. Click “Save all schedules” to store them.');};
+$('testBtn').onclick=async()=>{show('connStatus','Testing Firebase read access…');try{const x=await fb(pathSchedule('C01'));show('connStatus','Firebase endpoint is reachable and C01 schedule path is readable. Current value: '+JSON.stringify(x),'ok')}catch(e){show('connStatus','Connection/read failed: '+diagnose(e)+'\nCheck URL and Firebase rules; the database must permit authenticated read access.','err')}};
+$('clearToken').onclick=()=>{$('token').value='';show('connStatus','Token cleared from this page.')};
+$('loadSchedules').onclick=async()=>{show('scheduleStatus','Loading all schedules…');try{const results=await Promise.all(comps.map(async c=>[c,await fb(pathSchedule(c))]));let loaded=0;for(const [c,v] of results){if(v&&typeof v==='object'){if(typeof v.enabled==='boolean')$('en_'+c).checked=v.enabled;if(typeof v.time==='string'&&/^\d\d:\d\d$/.test(v.time))$('tm_'+c).value=v.time;show('st_'+c,'Loaded','ok');loaded++}else show('st_'+c,'No record')}saveScheduleDraft();show('scheduleStatus',`Loaded ${loaded} saved schedule(s). Missing records keep the default values shown.`, 'ok')}catch(e){show('scheduleStatus','Could not load schedules: '+diagnose(e),'err')}};
+$('saveSchedules').onclick=async()=>{const b=$('saveSchedules');b.disabled=true;show('scheduleStatus','Saving all ten schedules…');try{for(const c of comps)await saveOne(c);show('scheduleStatus','Saved schedules for C01–C10. Keep each ESP32 powered, connected to Wi-Fi/Firebase, and synchronized to NTP.','ok')}catch(e){show('scheduleStatus','Could not save all schedules: '+diagnose(e),'err')}finally{b.disabled=false}};
+let autoRefresh=true;let historyBusy=false;
+$('autoRefresh').onclick=()=>{autoRefresh=!autoRefresh;$('autoRefresh').textContent='Auto-refresh: '+(autoRefresh?'ON':'OFF');show('historyStatus',autoRefresh?'Auto-refresh enabled (every 15 seconds).':'Auto-refresh paused.','')};
+$('loadHistory').onclick=loadHistory;
+document.querySelectorAll('.tab').forEach(btn=>btn.addEventListener('click',()=>{
+  document.querySelectorAll('.tab').forEach(b=>b.classList.toggle('active',b===btn));
+  document.querySelectorAll('.tabPanel').forEach(p=>p.classList.toggle('active',p.id===btn.dataset.tab));
+}));
+$('focusComp').addEventListener('change',()=>renderHistoryViews(window.lastHistoryRecords||[]));
+function formatCaptureTime(value) {
+  if (value === null || value === undefined || value === '') return '—';
+  const text = String(value);
+  if (/^\d{4}-\d{2}-\d{2}T/.test(text)) {
+    const date = new Date(text);
+    if (!Number.isNaN(date.getTime())) {
+      const formattedDate = new Intl.DateTimeFormat('en-GB', {
+        timeZone: 'Asia/Manila', day: '2-digit', month: 'short', year: 'numeric'
+      }).format(date);
+      const formattedTime = new Intl.DateTimeFormat('en-US', {
+        timeZone: 'Asia/Manila', hour: '2-digit', minute: '2-digit', second: '2-digit', hourCycle: 'h12'
+      }).format(date);
+      return `${formattedDate} · ${formattedTime}`;
+    }
+  }
+  return text;
+}
+function formatLatestCapture(record) {
+  if (!record) return '—';
+  const timestamp = record.captured;
+  if (timestamp && /^\d{4}-\d{2}-\d{2}T/.test(String(timestamp))) {
+    const date = new Date(timestamp);
+    if (!Number.isNaN(date.getTime())) {
+      const formattedDate = new Intl.DateTimeFormat('en-GB', {
+        timeZone: 'Asia/Manila', day: '2-digit', month: 'short', year: 'numeric'
+      }).format(date);
+      const formattedTime = new Intl.DateTimeFormat('en-US', {
+        timeZone: 'Asia/Manila', hour: '2-digit', minute: '2-digit', hourCycle: 'h12'
+      }).format(date);
+      return `${formattedDate} · ${formattedTime}`;
+    }
+  }
+  return timestamp && timestamp !== '—' ? `${record.date} · ${timestamp}` : '—';
+}
+function historyRow(r){
+  return `<tr><td>${escapeHtml(r.date)}</td><td>${escapeHtml(r.comp)}</td><td>${Number.isFinite(r.weight)?r.weight.toFixed(2):'—'}</td><td>${escapeHtml(r.sched)}</td><td title="${escapeHtml(r.path+(r.key?'/'+r.key:''))}">${escapeHtml(formatCaptureTime(r.captured))}</td><td>${escapeHtml(r.status)}</td></tr>`;
+}
+function renderHistoryViews(records){
+  window.lastHistoryRecords=records;
+  $('sumRecords').textContent=records.length;
+  $('sumComps').textContent=new Set(records.map(r=>r.comp)).size;
+  const weights=records.filter(r=>Number.isFinite(r.weight));
+  $('sumAverage').textContent=weights.length?(weights.reduce((s,r)=>s+r.weight,0)/weights.length).toFixed(2)+' g':'—';
+  const latest=records.slice().sort((a,b)=>String(b.captured).localeCompare(String(a.captured)))[0];
+  $('sumLatest').textContent=formatLatestCapture(latest);
+  const allTable=records.length?records.map(historyRow).join(''):'<tr><td colspan="6" class="muted">No records in this date range.</td></tr>';
+  $('historyRows').innerHTML=allTable;
+  const focused=$('focusComp').value;
+  const filtered=focused==='ALL'?records:records.filter(r=>r.comp===focused);
+  $('historyCompRows').innerHTML=filtered.length?filtered.map(historyRow).join(''):'<tr><td colspan="6" class="muted">No records for this compartment in the selected date range.</td></tr>';
+  const groups=[...new Set(records.map(r=>r.comp))].sort();
+  $('historyGroups').innerHTML=groups.length?groups.map(c=>{
+    const rows=records.filter(r=>r.comp===c);
+    const valid=rows.filter(r=>Number.isFinite(r.weight));
+    const avg=valid.length?(valid.reduce((s,r)=>s+r.weight,0)/valid.length).toFixed(2)+' g':'—';
+    return `<details class="compGroup" open><summary><span>${escapeHtml(c)} · ${rows.length} record(s)</span><span>Average: ${avg}</span></summary><div class="tablewrap"><table><thead><tr><th>Date</th><th>Weight (g)</th><th>Scheduled time</th><th>Captured at</th><th>Status</th></tr></thead><tbody>${rows.map(r=>`<tr><td>${escapeHtml(r.date)}</td><td>${Number.isFinite(r.weight)?r.weight.toFixed(2):'—'}</td><td>${escapeHtml(r.sched)}</td><td>${escapeHtml(formatCaptureTime(r.captured))}</td><td>${escapeHtml(r.status)}</td></tr>`).join('')}</tbody></table></div></details>`;
+  }).join(''):'<p class="muted">No records to group yet.</p>';
+}
+function dateRange(startDate,endDate){
+  const dates=[];
+  const cursor=new Date(startDate+'T12:00:00');
+  const end=new Date(endDate+'T12:00:00');
+  while(cursor<=end){
+    dates.push([cursor.getFullYear(),String(cursor.getMonth()+1).padStart(2,'0'),String(cursor.getDate()).padStart(2,'0')].join('-'));
+    cursor.setDate(cursor.getDate()+1);
+  }
+  return dates;
+}
+async function loadHistory(){
+  if(historyBusy)return;
+  const start=$('historyStartDate').value;
+  const end=$('historyEndDate').value;
+  const selected=$('historyComp').value;
+  if(!start||!end){show('historyStatus','Choose both a start date and an end date.','err');return}
+  if(start>end){show('historyStatus','The start date must be on or before the end date.','err');return}
+  const dates=dateRange(start,end);
+  if(dates.length>366){show('historyStatus','Please choose a date range of 366 days or less.','err');return}
+  historyBusy=true;$('loadHistory').disabled=true;
+  show('historyStatus',`Reading Firebase history from ${start} through ${end}…`);$('historyRows').innerHTML='';
+  try{
+    const targets=selected==='ALL'?comps:[selected];
+    const requests=[];
+    for(const d of dates)for(const c of targets)requests.push((async()=>{
+      const p=pathHistory(c,d);let v=await fb(p);
+      if(v==null){const all=await fb('/crab_monitor/weight_history/'+c);if(all&&typeof all==='object')v=all[d]??all[d.replaceAll('-','')]??null}
+      return {c,p,d,v};
+    })());
+    const results=await Promise.all(requests);
+    const records=[];
+    for(const {c,p,d,v} of results){
+      if(v==null)continue;
+      const hasWeight=x=>x&&typeof x==='object'&&['weight_g','weight','grams','value','weightGrams','mass_g','mass'].some(k=>x[k]!==undefined);
+      let entries=[];
+      if(hasWeight(v)||typeof v==='number'||typeof v==='string')entries=[[null,v]];
+      else if(typeof v==='object')entries=Object.entries(v).filter(([,x])=>x!==null);
+      for(const [key,raw] of entries){
+        const item=(raw&&typeof raw==='object')?raw:{weight_g:raw};
+        const wr=item.weight_g??item.weight??item.grams??item.value??item.weightGrams??item.mass_g??item.mass;
+        const weight=wr!==undefined&&wr!==null&&wr!==''?Number(wr):NaN;
+        const date=item.date||item.capture_date||item.captureDate||d;
+        const comp=item.compartment||item.node||item.compartment_id||c;
+        const sched=item.scheduled_time||item.scheduledTime||item.schedule_time||item.scheduleTime||item.time_scheduled||'—';
+        const captured=item.captured_at||item.capturedAt||item.timestamp||item.created_at||item.createdAt||item.time_captured||item.time||'—';
+        const status=item.status||(item.online===false||item.valid===false?'Offline/invalid':(Number.isFinite(weight)?'Saved':'Weight missing'));
+        records.push({date,comp,weight,sched,captured,status,key:key||'',path:p});
+      }
+    }
+    records.sort((a,b)=>String(a.date).localeCompare(String(b.date))||String(a.captured).localeCompare(String(b.captured))||a.comp.localeCompare(b.comp));
+    renderHistoryViews(records);
+    if(!records.length)$('historyGroups').innerHTML='<p class="muted">No records found in this date range. Confirm the ESP32 saved records under /crab_monitor/weight_history/Cxx/YYYY-MM-DD.</p>';
+    const stamp=new Date().toLocaleTimeString('en-PH',{hour12:false});
+    show('historyStatus',`Found ${records.length} history record(s) from ${start} through ${end} (inclusive). Firebase path: /crab_monitor/weight_history/{C01–C10}/YYYY-MM-DD. Last refreshed ${stamp}. ${autoRefresh?'Auto-refresh is ON (15 seconds).':''}`,records.length?'ok':'');
+  }catch(e){$('historyRows').innerHTML='<tr><td colspan="6">Unable to load.</td></tr>';show('historyStatus','Could not load history: '+diagnose(e),'err')}
+  finally{historyBusy=false;$('loadHistory').disabled=false}
+}
+setInterval(()=>{if(autoRefresh&&document.visibilityState==='visible')loadHistory()},15000);
+function escapeHtml(x){return String(x).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+const today=new Date();const todayISO=[today.getFullYear(),String(today.getMonth()+1).padStart(2,'0'),String(today.getDate()).padStart(2,'0')].join('-');$('historyStartDate').value=todayISO;$('historyEndDate').value=todayISO;buildRows();
+
+// Keep the user's selected schedule times on this browser when the page refreshes.
+// Saving to localStorage preserves the draft; click Save to also write it to Firebase.
+const SCHEDULE_DRAFT_KEY='crabtrack_scheduled_weight_draft_v1';
+function saveScheduleDraft(){
+  try{
+    const draft={applyTime:$('applyTime').value||'06:00',rows:{}};
+    for(const c of comps){
+      draft.rows[c]={enabled:$('en_'+c).checked,time:$('tm_'+c).value||'06:00'};
+    }
+    localStorage.setItem(SCHEDULE_DRAFT_KEY,JSON.stringify(draft));
+  }catch(e){console.warn('Could not save schedule draft locally:',e)}
+}
+function restoreScheduleDraft(){
+  try{
+    const raw=localStorage.getItem(SCHEDULE_DRAFT_KEY);
+    if(!raw)return;
+    const draft=JSON.parse(raw);
+    if(draft.applyTime)$('applyTime').value=draft.applyTime;
+    for(const c of comps){
+      const row=draft.rows&&draft.rows[c];
+      if(!row)continue;
+      if(typeof row.enabled==='boolean')$('en_'+c).checked=row.enabled;
+      if(typeof row.time==='string' && /^\d{2}:\d{2}$/.test(row.time))$('tm_'+c).value=row.time;
+    }
+  }catch(e){console.warn('Could not restore schedule draft:',e)}
+}
+for(const id of ['applyTime',...comps.flatMap(c=>['en_'+c,'tm_'+c])]){
+  $(id).addEventListener('input',saveScheduleDraft);
+  $(id).addEventListener('change',saveScheduleDraft);
+}
+restoreScheduleDraft();
+</script></body></html>

@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#0A1628">
+<title>CrabTrack · Node Status & Troubleshooting</title>
+<link rel="stylesheet" href="style.css">
+<style>
+body{padding:0;overflow-y:auto}
+.wrap{max-width:1180px;margin:0 auto;padding:16px 16px 60px}
+.head{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:14px 0 18px;border-bottom:1px solid var(--border);margin-bottom:18px}
+.head h1{font-size:15px;letter-spacing:.08em}.sub{font-size:10px;color:var(--text3);margin-top:4px}.spacer{flex:1}
+.card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);padding:16px;margin-bottom:14px}
+.card h2{font-size:12px;letter-spacing:.09em;color:var(--teal);margin-bottom:8px}
+.hint{font-size:11px;color:var(--text3);line-height:1.6}
+.actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+.btn{background:var(--teal-dim);border:1px solid var(--teal);border-radius:var(--rs);padding:8px 12px;color:var(--teal);cursor:pointer;font-family:var(--mono);font-size:11px}
+.btn.ghost{background:none;border-color:var(--border2);color:var(--text2)}
+.summary{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin-bottom:14px}
+.metric{background:var(--bg3);border:1px solid var(--border);border-radius:var(--r);padding:12px}
+.metric .k{font-size:9px;color:var(--text3);letter-spacing:.08em}.metric .v{font-size:23px;font-weight:bold;margin-top:5px}.metric .v.ok{color:var(--teal)}.metric .v.bad{color:var(--red)}.metric .v.warn{color:var(--amber)}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(245px,1fr));gap:10px}
+.node{background:var(--bg3);border:1px solid var(--border);border-radius:var(--r);padding:13px;min-width:0}
+.ntop{display:flex;align-items:center;gap:8px}.dot{width:9px;height:9px;border-radius:50%;flex-shrink:0}.dot.on{background:var(--teal);box-shadow:0 0 7px var(--teal)}.dot.off{background:var(--red)}.dot.na{background:var(--text3)}
+.nname{font-weight:bold;font-size:12px}.status{margin-left:auto;font-size:9px;border:1px solid var(--border2);border-radius:10px;padding:3px 7px}
+.status.on{color:var(--teal);border-color:var(--teal)}.status.off{color:var(--red);border-color:var(--red)}
+.value{font-size:19px;font-weight:bold;margin-top:12px;word-break:break-word}.meta{font-size:10px;color:var(--text3);line-height:1.7;margin-top:7px}
+.issue{font-size:10px;line-height:1.55;border-radius:6px;padding:8px;margin-top:10px;background:var(--bg);border:1px solid var(--border2);color:var(--text2)}
+.issue.bad{border-color:rgba(239,68,68,.45)}.issue.warn{border-color:rgba(245,158,11,.45)}
+.small{font-size:10px;color:var(--text3)}.error{color:var(--red)}.ok{color:var(--teal)}
+code,pre{font-family:var(--mono);font-size:10px}code{color:var(--teal);word-break:break-word}
+pre{white-space:pre-wrap;overflow-wrap:anywhere;background:var(--bg);border:1px solid var(--border);border-radius:var(--rs);padding:10px;color:var(--text2);line-height:1.6}
+label{display:block;font-size:10px;color:var(--text3);margin:8px 0 4px}
+input,select{width:100%;max-width:500px;background:var(--bg);border:1px solid var(--border2);border-radius:var(--rs);padding:8px;color:var(--text);font-family:var(--mono);font-size:11px}
+.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+@media(max-width:600px){.wrap{padding:10px}.card{padding:12px}.value{font-size:17px}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="head">
+    <span class="logo-dot"></span>
+    <div><h1>NODE STATUS &amp; TROUBLESHOOTING</h1><div class="sub" id="apiLabel">Connecting to Raspberry Pi…</div></div>
+    <span class="spacer"></span>
+    <span class="conn-badge offline" id="conn">CHECKING…</span>
+    <a class="tbtn" href="index.html" style="text-decoration:none">← Dashboard</a>
+    <a class="tbtn" href="nodes.html" style="text-decoration:none">📡 Nodes &amp; Feeding</a>
+  </header>
+
+  <div class="summary">
+    <div class="metric"><div class="k">WEIGHT NODES ONLINE</div><div class="v" id="weightOnline">—</div></div>
+    <div class="metric"><div class="k">WEIGHT NODES OFFLINE</div><div class="v" id="weightOffline">—</div></div>
+    <div class="metric"><div class="k">SENSOR / CONTROL NODES ONLINE</div><div class="v" id="sensorOnline">—</div></div>
+    <div class="metric"><div class="k">LAST API CHECK</div><div class="v" id="checkedAt" style="font-size:15px">—</div></div>
+  </div>
+
+  <section class="card">
+    <h2>📡 LIVE NODE STATUS</h2>
+    <p class="hint">Status comes from the Raspberry Pi API. A node is considered online only when the Pi has recently received its MQTT data. The page refreshes every 5 seconds.</p>
+    <div class="actions"><button class="btn" id="refreshBtn">REFRESH NOW</button><button class="btn ghost" id="copyApiBtn">COPY API URL</button></div>
+    <div id="nodes" class="grid" style="margin-top:14px"><div class="hint">Waiting for data…</div></div>
+    <div id="loadError" class="hint error" style="margin-top:10px"></div>
+  </section>
+
+  <section class="card">
+    <h2>🧰 TROUBLESHOOT A NODE</h2>
+    <p class="hint">Choose a node to see checks tailored to its current status. This page diagnoses likely causes; it does not remotely power-cycle hardware or change ESP32 settings.</p>
+    <label for="troubleNode">SELECT NODE</label>
+    <select id="troubleNode">
+      <optgroup label="Sensor nodes">
+        <option value="node1">Node 1 — pH</option><option value="node2">Node 2 — EC / temperature</option><option value="node3">Node 3 — TFT display</option>
+      </optgroup>
+      <optgroup label="Control nodes">
+        <option value="node5">Node 5 — Solenoid controller</option><option value="node6">Node 6 — Pump controller</option>
+      </optgroup>
+      <optgroup label="Weight nodes">
+        <option value="weight1">C01 — Weight</option><option value="weight2">C02 — Weight</option>
+        <option value="weight3">C03 — Weight</option><option value="weight4">C04 — Weight</option>
+        <option value="weight5">C05 — Weight</option><option value="weight6">C06 — Weight</option>
+        <option value="weight7">C07 — Weight</option><option value="weight8">C08 — Weight</option>
+        <option value="weight9">C09 — Weight</option><option value="weight10">C10 — Weight</option>
+      </optgroup>
+    </select>
+    <div id="diagnosis" style="margin-top:12px"><div class="hint">Select a node after the first API refresh.</div></div>
+    <div class="actions"><button class="btn" id="copyCommand">COPY MQTT LISTEN COMMAND</button><button class="btn ghost" id="copyChecklist">COPY TROUBLESHOOTING CHECKLIST</button></div>
+  </section>
+
+  <section class="card">
+    <h2>🖥 RASPBERRY PI QUICK CHECKS</h2>
+    <p class="hint">Run these in the Raspberry Pi terminal. The MQTT listener command requires <code>mosquitto-clients</code> to be installed.</p>
+    <pre id="quickCommands">cd ~/crab-monitor
+curl -s http://127.0.0.1:3000/api/status
+curl -s http://127.0.0.1:3000/api/data
+curl -s http://127.0.0.1:3000/api/nodes
+sudo systemctl status mosquitto --no-pager</pre>
+    <div class="actions"><button class="btn" id="copyQuick">COPY QUICK CHECKS</button></div>
+  </section>
+  <p class="small">Note: “Offline” means no recent data reached the Pi; it does not prove the ESP32 itself has no power. Check the serial monitor, Wi-Fi, MQTT broker address/topic, and Pi logs to isolate the cause.</p>
+</div>
+<div class="toast" id="toast"></div>
+<script>
+const API = () => (localStorage.getItem('crabtrack_api_url') || ((location.protocol.startsWith('http') && location.port === '3000') ? location.origin : 'http://crabtrackpi.local:3000')).replace(/\/$/, '');
+const $ = id => document.getElementById(id);
+let latest = null;
+let apiNodeList = [];
+const esc = v => String(v ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+function toast(msg, err=false){const t=$('toast');t.textContent=msg;t.className='toast show'+(err?' err':'');setTimeout(()=>t.className='toast',2600)}
+async function copyText(text){try{await navigator.clipboard.writeText(text);toast('Copied to clipboard')}catch(e){toast('Copy unavailable — select and copy the text manually',true)}}
+function dateText(s){if(!s)return 'No data received yet';const d=new Date(s);return Number.isNaN(d.getTime())?s:d.toLocaleString()}
+function ageText(s){if(!s)return 'Never received';const ms=Date.now()-new Date(s).getTime();if(!Number.isFinite(ms))return s;if(ms<0)return 'just now';const sec=Math.floor(ms/1000);if(sec<60)return sec+'s ago';if(sec<3600)return Math.floor(sec/60)+'m ago';return Math.floor(sec/3600)+'h ago'}
+function isWeight(id){return /^weight(10|[1-9])$/.test(id)}
+function compartment(id){return 'C'+String(id.replace('weight','')).padStart(2,'0')}
+function normaliseNodeRecord(id, raw){
+ if(!raw)return null;
+ const rec={...raw};
+ if(rec.node_id===undefined)rec.node_id=rec.nodeId||id;
+ if(rec.last_seen===undefined)rec.last_seen=rec.lastSeen||rec.last_seen_at||null;
+ if(rec.online===undefined && rec.secondsSinceSeen!==undefined)rec.online=rec.secondsSinceSeen!==null && rec.secondsSinceSeen <= (rec.offlineAfter||120);
+ if(rec.online===undefined && latest){
+   const flag=latest[id+'_online'];
+   if(flag!==undefined)rec.online=!!flag;
+   else if(latest[id+'_ok']!==undefined)rec.online=!!latest[id+'_ok'];
+ }
+ if(rec.weight===undefined && rec.lastPayload)rec.weight=rec.lastPayload.weight??rec.lastPayload.weight_g??null;
+ if(rec.ph===undefined && rec.lastPayload)rec.ph=rec.lastPayload.ph??rec.lastPayload.pH;
+ if(rec.ec===undefined && rec.lastPayload)rec.ec=rec.lastPayload.ec??rec.lastPayload.EC??rec.lastPayload.salinity;
+ if(rec.temperature===undefined && rec.lastPayload)rec.temperature=rec.lastPayload.temperature??rec.lastPayload.Temp;
+ if(rec.online===undefined)rec.online=false;
+ return rec;
+}
+function nodeRecord(id){
+ if(!latest)return null;
+ if(isWeight(id)){
+   const fromDirect=latest[id] && typeof latest[id]==='object' ? latest[id] : null;
+   const fromMap=(latest.nodes && !Array.isArray(latest.nodes) ? latest.nodes[id] : null) || fromDirect || (latest.weight_nodes||{})[compartment(id)] || null;
+   if(fromMap){const r=normaliseNodeRecord(id,fromMap);if((r.weight===undefined||r.weight===null)&&Array.isArray(latest.weights))r.weight=latest.weights[Number(id.replace('weight',''))-1]??r.weight;return r;}
+   const n=Array.isArray(latest.nodes)?latest.nodes.find(x=>(x.nodeId||x.node_id)===id):null;
+   if(n){const r=normaliseNodeRecord(id,n);if((r.weight===undefined || r.weight===null) && Array.isArray(latest.weights))r.weight=latest.weights[Number(id.replace('weight',''))-1]??r.weight;return r;}
+   const w=Array.isArray(latest.weights)?latest.weights[Number(id.replace('weight',''))-1]:undefined;
+   if(w!==undefined || latest[id+'_online']!==undefined)return normaliseNodeRecord(id,{online:!!latest[id+'_online'],weight:w,last_seen:latest.timestamp||null,node_id:id});
+   return null;
+ }
+ const mapped=latest.nodes && !Array.isArray(latest.nodes) ? latest.nodes[id] : null;
+ const direct=latest[id] && typeof latest[id]==='object' ? latest[id] : null;
+ const arr=Array.isArray(latest.nodes)?latest.nodes.find(x=>(x.nodeId||x.node_id)===id):null;
+ const listed=apiNodeList.find(x=>(x.nodeId||x.node_id)===id);
+ const rec=mapped||direct||arr||listed;
+ if(rec)return normaliseNodeRecord(id,rec);
+ const flag=latest[id+'_online']!==undefined?latest[id+'_online']:latest[id+'_ok'];
+ if(flag!==undefined)return normaliseNodeRecord(id,{online:!!flag,last_seen:latest.timestamp||null,node_id:id,ph:latest.ph,ec:latest.ec??latest.salinity,temperature:latest.temperature});
+ return null;
+}
+function online(rec){return !!(rec && rec.online)}
+function nodeName(id){if(isWeight(id))return compartment(id)+' — Weight';return ({node1:'Node 1 — pH',node2:'Node 2 — EC / temperature',node3:'Node 3 — TFT display',node5:'Node 5 — Solenoid controller',node6:'Node 6 — Pump controller'})[id]||id}
+function weightValue(rec){if(!rec)return '—';const w=rec.weight;if(w===null||w===undefined)return 'No reading';return Number(w).toLocaleString(undefined,{maximumFractionDigits:2})+' g'}
+function sensorValue(id,rec){if(!rec)return 'No data';if(id==='node1')return rec.ph===null||rec.ph===undefined?'pH —':'pH '+rec.ph;if(id==='node2')return 'EC '+(rec.ec??'—')+' · '+(rec.temperature??'—')+' °C';if(id==='node3')return 'Display node';return '—'}
+function diagnostic(id,rec){
+ const on=online(rec), last=rec?.last_seen;
+ const lines=[];
+ if(!rec){lines.push(['bad','No node record was returned by /api/data. Confirm the Flask server version and API response.']);}
+ else if(!on){
+   lines.push(['bad',last?`Node last reported ${dateText(last)} (${ageText(last)}). The Pi has not received a recent message.`:'The Pi has not recorded a message from this node yet.']);
+   lines.push(['warn','1. Check that the ESP32 is powered and the board is not resetting.']);
+   lines.push(['warn','2. Confirm the ESP32 is connected to the same Wi-Fi/LAN as the Raspberry Pi.']);
+   lines.push(['warn','3. Confirm the firmware MQTT broker is crabtrackpi.local (or the Pi’s current reachable IPv4 address), port 1883.']);
+   if(id==='node5'||id==='node6'){
+     lines.push(['warn','4. Confirm the controller firmware uses the correct Pi host and port 3000.']);
+     lines.push(['warn','5. On the Pi, test `curl -s http://127.0.0.1:3000/api/actuators/state`; this route must exist in the active backend.']);
+     lines.push(['warn','6. Check the controller Serial Monitor for HTTP status codes and Wi-Fi reconnect messages.']);
+   }else{
+     lines.push(['warn',`4. Confirm the topic is configured as expected: ${isWeight(id)?'crabtrack/'+id:'crabtrack/'+id+'/data'}.`]);
+     lines.push(['warn','5. Watch the server terminal for MQTT messages and connection errors; check `sudo systemctl status mosquitto --no-pager`.']);
+   }
+   if(isWeight(id))lines.push(['warn','6. If MQTT messages arrive but weight is missing or unstable, inspect HX711 DT/SCK wiring, load-cell wiring, tare, and calibration.']);
+ }else{
+   lines.push(['ok',`The Pi reports this node online. Last message: ${dateText(last)} (${ageText(last)}).`]);
+   if(isWeight(id)){
+     const w=Number(rec.weight);
+     if(rec.weight===null||rec.weight===undefined)lines.push(['warn','Node is marked online but no weight value is present. Check the JSON payload field `+'`weight`'+'.']);
+     else if(w<0)lines.push(['warn',`Weight is negative (${w} g). Check empty-platform tare, calibration factor, load-cell wiring, and whether the platform is mechanically loaded.`]);
+     else lines.push(['ok','Weight data is present. If the displayed value is inaccurate, compare with a known test weight and recalibrate.']);
+   }else if(id==='node1' && Number(rec.ph)===0)lines.push(['warn','Node is online but pH is 0. Check the pH payload field, probe connection, ADC wiring, and calibration.']);
+   else if(id==='node2' && (rec.ec===null||rec.ec===undefined))lines.push(['warn','Node is online but EC is missing. Check the EC field in the payload.']);
+   else lines.push(['ok','No immediate connectivity issue is indicated by the latest API response.']);
+ }
+ return lines;
+}
+function renderDiagnosis(){
+ const id=$('troubleNode').value, rec=nodeRecord(id);
+ const state=online(rec), lines=diagnostic(id,rec);
+ $('diagnosis').innerHTML=`<div class="node"><div class="ntop"><span class="dot ${state?'on':'off'}"></span><span class="nname">${esc(nodeName(id))}</span><span class="status ${state?'on':'off'}">${state?'ONLINE':'OFFLINE'}</span></div><div class="meta">Last seen: ${esc(dateText(rec?.last_seen))} · ${esc(ageText(rec?.last_seen))}</div>${lines.map(([kind,msg])=>`<div class="issue ${kind==='bad'?'bad':kind==='warn'?'warn':''}">${esc(msg)}</div>`).join('')}</div>`;
+}
+function render(){
+ const weightIds=Array.from({length:10},(_,i)=>'weight'+(i+1));
+ const sensorIds=['node1','node2','node3','node5','node6'];
+ const all=[...sensorIds,...weightIds];
+ const weights=weightIds.map(nodeRecord);
+ const won=weights.filter(online).length;
+ const son=sensorIds.filter(id=>online(nodeRecord(id))).length;
+ $('weightOnline').textContent=won+'/10';$('weightOnline').className='v '+(won===10?'ok':won?'warn':'bad');
+ $('weightOffline').textContent=(10-won)+'/10';$('weightOffline').className='v '+(won===0?'ok':'bad');
+ $('sensorOnline').textContent=son+'/5';$('sensorOnline').className='v '+(son===5?'ok':son?'warn':'bad');
+ $('checkedAt').textContent=new Date().toLocaleTimeString();
+ $('nodes').innerHTML=all.map(id=>{
+   const rec=nodeRecord(id),on=online(rec),last=rec?.last_seen;
+   const val=isWeight(id)?weightValue(rec):sensorValue(id,rec);
+   let issue='';
+   if(!on)issue=`<div class="issue bad">${last?'No recent data from this node.':'No data has been recorded yet.'} Use Troubleshoot below for checks.</div>`;
+   else if(isWeight(id)&&Number(rec?.weight)<0)issue=`<div class="issue warn">Negative weight detected. Check tare and calibration.</div>`;
+   return `<article class="node"><div class="ntop"><span class="dot ${rec?(on?'on':'off'):'na'}"></span><span class="nname">${esc(nodeName(id))}</span><span class="status ${on?'on':'off'}">${on?'ONLINE':'OFFLINE'}</span></div><div class="value">${esc(val)}</div><div class="meta">Node ID: ${esc(rec?.node_id||id)}<br>Last seen: ${esc(ageText(last))}<br>${esc(dateText(last))}</div>${issue}<div class="actions"><button class="btn ghost" data-trouble="${esc(id)}">TROUBLESHOOT</button></div></article>`;
+ }).join('');
+ document.querySelectorAll('[data-trouble]').forEach(b=>b.onclick=()=>{$('troubleNode').value=b.dataset.trouble;renderDiagnosis();$('troubleNode').scrollIntoView({behavior:'smooth',block:'start'})});
+ renderDiagnosis();
+}
+async function refresh(){
+ $('apiLabel').textContent=API();
+ try{
+  const r=await fetch(API()+'/api/data',{cache:'no-store'});
+  if(!r.ok)throw new Error('HTTP '+r.status);
+  const data=await r.json();
+  if(!data || typeof data!=='object')throw new Error('API response was not JSON data');
+  latest=data;
+  try { const nr=await fetch(API()+'/api/nodes',{cache:'no-store'}); if(nr.ok){const nd=await nr.json();apiNodeList=Array.isArray(nd)?nd:[];} } catch(_) {}
+  $('conn').textContent='PI API CONNECTED';$('conn').className='conn-badge online';$('loadError').textContent='';render();
+ }catch(e){
+  $('conn').textContent='PI UNREACHABLE';$('conn').className='conn-badge offline';
+  $('loadError').textContent='Could not read '+API()+'/api/data — '+e.message+'. Check the API URL, network connection, and whether the Flask server is running.';
+  $('nodes').innerHTML='<div class="hint error">No live data available. Verify the Pi URL and server.</div>';
+ }
+}
+$('refreshBtn').onclick=refresh;
+$('troubleNode').onchange=renderDiagnosis;
+$('copyApiBtn').onclick=()=>copyText(API()+'/api/data');
+$('copyQuick').onclick=()=>copyText($('quickCommands').textContent);
+$('copyCommand').onclick=()=>{const id=$('troubleNode').value;const topic=isWeight(id)?'crabtrack/'+id:'crabtrack/'+id+'/data';copyText(`mosquitto_sub -h 127.0.0.1 -t '${topic}' -v`)};
+$('copyChecklist').onclick=()=>{const id=$('troubleNode').value;const rec=nodeRecord(id);copyText(`CrabTrack troubleshooting: ${nodeName(id)}\nStatus: ${online(rec)?'ONLINE':'OFFLINE'}\nLast seen: ${dateText(rec?.last_seen)}\n1. Check ESP32 power and reset behavior.\n2. Check Wi-Fi/LAN connection.\n3. Verify broker host, port 1883, and exact MQTT topic in firmware.\n4. Check Mosquitto: sudo systemctl status mosquitto --no-pager\n5. Inspect the running Python server terminal for MQTT logs.\n6. For weight nodes, check HX711/load-cell wiring, tare and calibration.`)};
+refresh();setInterval(refresh,5000);
+</script>
+</body>
+</html>

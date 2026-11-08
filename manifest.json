@@ -1,0 +1,24 @@
+{
+  "name": "CrabTrack — Crab Monitoring System",
+  "short_name": "CrabTrack",
+  "description": "Offline-first monitoring for crab compartments: pH, salinity, temperature, weights and feeding schedules.",
+  "id": "/crabtrack/",
+  "start_url": "index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#0A1628",
+  "theme_color": "#0A1628",
+  "categories": ["utilities", "productivity"],
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icons/maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ],
+  "shortcuts": [
+    { "name": "Nodes & Feeding", "short_name": "Nodes", "url": "nodes.html",
+      "icons": [{ "src": "icons/icon-192.png", "sizes": "192x192" }] },
+    { "name": "Diagnostics", "short_name": "Admin", "url": "admin.html",
+      "icons": [{ "src": "icons/icon-192.png", "sizes": "192x192" }] }
+  ]
+}
